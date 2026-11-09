@@ -4,8 +4,8 @@ This repository contains code for the Tank Game known from "2 3 4 Player Mini Ga
 This game can be played on a static site or can be hosted on a server for multiple device support.
 
 ## Static
-More info [here](https://github.com/C-PLUS-PLUSandPYTHON/Tank-Game/tree/static).
+More info [here](https://github.com/purplex1ty/Tank-Game/tree/static).
 
 ## Server
 
-Code for esp32 hosting [here](https://github.com/C-PLUS-PLUSandPYTHON/Tank-Game/tree/server)
+Code for esp32 hosting [here](https://github.com/purplex1ty/Tank-Game/tree/server)
