@@ -1,3 +1,3 @@
 # Static
 
-Here you can see code for the static multiplayer Tank Game which is playable [here](https://purplex1ty.github.io/Tank-Game/).
+Go play it here (recommended with friends on mobile) [here](https://purplex1ty.github.io/Tank-Game/).
