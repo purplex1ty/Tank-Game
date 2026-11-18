@@ -6,10 +6,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tank Game</title>
     <script src="script.js" defer></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    
+    <canvas id="game"></canvas>
+    <div id="menu" class="blur">
+        <h1 class="wiggle" style="margin-block: 5vh;">
+            <span data-i="0">T</span>
+            <span data-i="1">a</span>
+            <span data-i="2">n</span>
+            <span data-i="3">k</span>
+            <span> </span>
+            <span data-i="0">G</span>
+            <span data-i="1">a</span>
+            <span data-i="2">m</span>
+            <span data-i="3">e</span>
+        </h1>
+        <button id="play">Play</button>
+        <p>Made with ❤️ by <span style="font-style:italic;">purplexity</span></p>
+    </div>
+    <div id="tutorial" class="hidden blur">
+        <div class="box">
+            <h1>Tutorial</h1>
+            <h2>Controls</h2>
+            <p>
+                Your control is a button in one of the corners, it will steer your tank.<br>
+                Holding it down moves the tank in the direction it is facing.<br>
+                Clicking it will shoot a projectile.
+            </p>
+            <h2>Goal</h2>
+            <p>
+                Destroy all your friends' tanks by hitting them with a bullet to win.
+            </p>
+            <p>
+                Have fun and play fair (don't sabotage the others by removing their fingers from the screen)
+            </p>
+            <button id="start">start</button>
+        </div>
+    </div>
+    <div id="win" class="hidden blur">
+        <h1 id="color" class="wiggle" style="letter-spacing: normal"><span></span></h1>
+        <h1 class="wiggle">
+            <span data-i="0">W</span>
+            <span data-i="1">O</span>
+            <span data-i="2">N</span>
+            <span data-i="3">!</span>
+        </h1>
+        <div style="display: flex; gap: 5vw; margin-top: 7vh;">
+            <button id="restart">restart</button>
+            <button id="home">home</button>
+        </div>
+
+    </div>
+
 </body>
 
 </html>

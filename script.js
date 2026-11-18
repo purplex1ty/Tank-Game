@@ -2,6 +2,7 @@
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
 const control_size = 160;                   //units
+const bush_size = 60;                       //units
 const wall_size = 35;                       //units
 const wall_offset = 3;                      //units
 const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: units
@@ -17,11 +18,18 @@ const unit_width = 1000;                          //units
 const unit_height = unit_width * 9 / 16;          //units
 
 const colors = ['yellow', 'blue', 'red', 'green'];
-const color_codes = ['#F7E967', '#4A90E2', '#D0021B', '#7ED321'];
+const color_codes = ['#eedb2f', '#4a91e2', '#d0021a', '#72cf0f'];
+
+const game_state = Object.freeze({
+    Menu: 0,
+    Tutorial: 1,
+    Playing: 2,
+    Win: 3,
+});
 
 //-------- DEBUG --------
 const debug = false;
-const skip_start_menu = false;
+const alternative_start_state = game_state.Playing;
 
 //------- RENDERING -------
 class renderer {
@@ -32,8 +40,8 @@ class renderer {
     canvas_width;
     canvas_height;
 
-    constructor() {
-        this.canvas = document.body.appendChild(document.createElement('canvas'));
+    constructor(canvas) {
+        this.canvas = canvas;
         this.context = this.canvas.getContext('2d');
         this.html = document.documentElement;
     }
@@ -85,7 +93,6 @@ class renderer {
         this.context.stroke();
     }
 }
-renderer = new renderer();
 
 //------- GAME -------
 class control {
@@ -112,9 +119,9 @@ class control {
         this.down = this.game.mouse_down_box(this.x, this.y, control_size, control_size);
     }
     render() {
-        renderer.draw_image(this.down ? this.image_down : this.image, this.x, this.y, control_size, control_size);
+        this.game.renderer.draw_image(this.down ? this.image_down : this.image, this.x, this.y, control_size, control_size);
         if (debug)
-            renderer.draw_rect(this.x, this.y, control_size, control_size, color_codes[this.id], 3);
+            this.game.renderer.draw_rect(this.x, this.y, control_size, control_size, color_codes[this.id], 3);
     }
 }
 class tank {
@@ -178,9 +185,9 @@ class tank {
         }
     }
     render() {
-        renderer.draw_rotated_image(this.image, this.x, this.y, tank_size, -1, this.orientation);
+        this.game.renderer.draw_rotated_image(this.image, this.x, this.y, tank_size, -1, this.orientation);
         if (debug)
-            renderer.draw_ellipse(this.x, this.y, tank_size / 2, tank_size / 2, 0, color_codes[this.id], 3);
+            this.game.renderer.draw_ellipse(this.x, this.y, tank_size / 2, tank_size / 2, 0, color_codes[this.id], 3);
     }
 }
 class bullet {
@@ -237,12 +244,22 @@ class bullet {
             if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, wall.x, wall.y, wall_size / 2))
                 this.delete();
         }
+
+        //check if hitting any bush
+        for (let i = 0; i < this.game.bushes.length; i++) {
+            const bush = this.game.bushes[i];
+            const radians = this.orientation * Math.PI / 180;
+            if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, bush.x, bush.y, bush_size / 2)) {
+                bush.delete();
+                this.delete();
+            }
+        }
     }
     render() {
-        renderer.draw_rotated_image(this.image, this.x, this.y, bullet_size, -1, this.orientation);
+        this.game.renderer.draw_rotated_image(this.image, this.x, this.y, bullet_size, -1, this.orientation);
         if (debug) {
             const radians = this.orientation * Math.PI / 180;
-            renderer.draw_ellipse(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, bullet_size / 2, 0, color_codes[this.id], 3);
+            this.game.renderer.draw_ellipse(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, bullet_size / 2, 0, color_codes[this.id], 3);
         }
     }
 }
@@ -290,21 +307,72 @@ class wall {
         }
     }
     render() {
-        renderer.draw_rotated_image(this.image, this.x, this.y, wall_size, -1, this.orientation);
+        this.game.renderer.draw_rotated_image(this.image, this.x, this.y, wall_size, -1, this.orientation);
+    }
+}
+class bush {
+    id = 0;
+    x = 0;
+    y = 0;
+    orientation = 0;
+    image = new Image();
+    game = null;
+
+    constructor(id, game) {
+        this.id = id;
+        this.game = game;
+        this.orientation = Math.random() * 90;
+        this.image.src = `assets/game/bushes/bush.svg`;
+
+        switch (this.id) {
+            case 0:
+                this.x = 450;
+                this.y = 300;
+                break;
+            case 1:
+                this.x = 800;
+                this.y = 270;
+                break;
+            case 2:
+                this.x = 520;
+                this.y = 500;
+                break;
+            case 3:
+                this.x = 550;
+                this.y = 200;
+                break;
+        }
+    }
+    delete() {
+        const index = this.game.bushes.indexOf(this);
+        if (index !== -1) this.game.bushes.splice(index, 1);
+    }
+    render() {
+        this.game.renderer.draw_rotated_image(this.image, this.x, this.y, bush_size, bush_size, this.orientation);
+        if (debug)
+            this.game.renderer.draw_ellipse(this.x, this.y, bush_size / 2, bush_size / 2, 0, color_codes[3], 3);
     }
 }
 
 class game {
+    renderer;
+    state = game_state.Menu;
+    state_changed = true;
+    menu = null;
+    tutorial = null;
+    win = null;
     //game timing
     ticks_per_second = 60;
     ms_per_tick = 1000 / this.ticks_per_second;
     accumulated_time = 0;
+    time = 0;
     last_time = performance.now();
 
     //game objects
     controls = new Array(colors.length);
     tanks = new Array(colors.length);
     walls = new Array(colors.length * 16);
+    bushes = new Array(4);
     bullets = new Array();
 
     //game images
@@ -319,7 +387,11 @@ class game {
 
     constructor() {
         this.setup_game_objects();
-        this.setup_styles();
+        this.setup_event_listeners();
+        if (debug && alternative_start_state) {
+            this.state = alternative_start_state;
+            this.state_changed = true;
+        }
     }
     tick(now) {
         this.accumulated_time += now - this.last_time;
@@ -327,6 +399,7 @@ class game {
         while (this.accumulated_time >= this.ms_per_tick) {
             this.update();
             this.accumulated_time -= this.ms_per_tick;
+            this.time += 1 / this.ticks_per_second;
         }
         this.render();
         requestAnimationFrame(this.tick.bind(this));
@@ -339,16 +412,37 @@ class game {
         }
         for (let i = 0; i < this.walls.length; i++)
             this.walls[i] = new wall(i, this);
+        for (let i = 0; i < this.bushes.length; i++)
+            this.bushes[i] = new bush(i, this);
     }
-    setup_styles() {
-        document.body.style.cssText = "background-color: #000000; margin: 0; padding: 0; overflow: hidden;";
-        renderer.canvas.style.cssText = "position: absolute; transform: translate(-50%, -50%); top: 50%; left: 50%; touch-action: none; user-select: none; -webkit-user-select: none; -ms-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;";
+    setup_event_listeners() {
+        this.renderer = new renderer(document.getElementById("game"));
+        this.menu = document.getElementById("menu");
+        this.win = document.getElementById("win");
+        this.tutorial = document.getElementById("tutorial");
+        document.getElementById("play").addEventListener("click", e => {
+            this.state = game_state.Tutorial;
+            this.state_changed = true;
+        });
+        document.getElementById("start").addEventListener("click", e => {
+            this.state = game_state.Playing;
+            this.state_changed = true;
+        });
+        document.getElementById("restart").addEventListener("click", e => {
+            this.state = game_state.Playing;
+            this.state_changed = true;
+        });
+        document.getElementById("home").addEventListener("click", e => {
+            this.state = game_state.Menu;
+            this.state_changed = true;
+        });
 
-        renderer.canvas.addEventListener("selectstart", e => e.preventDefault());
-        renderer.canvas.addEventListener("gesturestart", e => e.preventDefault());
-        renderer.canvas.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
-        renderer.canvas.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
-        renderer.canvas.addEventListener('contextmenu', e => e.preventDefault());
+        this.renderer.canvas.addEventListener("selectstart", e => e.preventDefault());
+        this.renderer.canvas.addEventListener("gesturestart", e => e.preventDefault());
+        this.renderer.canvas.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
+        this.renderer.canvas.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+        this.renderer.canvas.addEventListener('contextmenu', e => e.preventDefault());
+
         document.addEventListener("keydown", e => {
             if (e.key === "d") {
                 this.debug = !this.debug;
@@ -369,7 +463,7 @@ class game {
             this.pointers.delete(e.pointerId);
         });
         this.getPos = function (e) {
-            const rect = renderer.canvas.getBoundingClientRect();
+            const rect = this.renderer.canvas.getBoundingClientRect();
             return {
                 x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, type: e.pointerType // "mouse", "touch", "pen"
             };
@@ -377,7 +471,7 @@ class game {
     }
     mouse_down_box(x, y, w, h) {
         for (const [id, p] of this.pointers) {
-            if (p.x >= x * renderer.scale && p.x <= (x + w) * renderer.scale && p.y >= y * renderer.scale && p.y <= (y + h) * renderer.scale) {
+            if (p.x >= x * this.renderer.scale && p.x <= (x + w) * this.renderer.scale && p.y >= y * this.renderer.scale && p.y <= (y + h) * this.renderer.scale) {
                 return true;
             }
         }
@@ -385,8 +479,8 @@ class game {
     }
     mouse_down_circle(x, y, r) {
         for (const [id, p] of this.pointers) {
-            const distance = Math.sqrt((p.x - x * renderer.scale) ** 2 + (p.y - y * renderer.scale) ** 2);
-            if (distance <= r * renderer.scale) {
+            const distance = Math.sqrt((p.x - x * this.renderer.scale) ** 2 + (p.y - y * this.renderer.scale) ** 2);
+            if (distance <= r * this.renderer.scale) {
                 return true;
             }
         }
@@ -476,24 +570,75 @@ class game {
         me.y += y_diff;
     }
     update() {
-        for (let i = 0; i < colors.length; i++) {
-            this.controls[i].update();
-            this.tanks[i].update();
+        if (this.state == game_state.Playing) {
+            if (this.state_changed) {
+                this.state_changed = false;
+                this.tutorial.classList.add("hidden");
+                this.menu.classList.add("hidden");
+                this.win.classList.add("hidden");
+            }
+            for (let i = 0; i < colors.length; i++) {
+                this.controls[i].update();
+                this.tanks[i].update();
+            }
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                this.bullets[i].update();
+            }
+            for (let i = 0; i < this.walls.length; i++) {
+                this.walls[i].update();
+            }
+            if (this.tanks_destroyed >= colors.length - 1) {
+                this.state = game_state.Win;
+                this.state_changed = true;
+            }
         }
-        for (let i = this.bullets.length - 1; i >= 0; i--) {
-            this.bullets[i].update();
+        else if (this.state == game_state.Tutorial) {
+            if (this.state_changed) {
+                this.state_changed = false;
+                this.menu.classList.add("hidden");
+                this.tutorial.classList.remove("hidden");
+            }
         }
-        for (let i = 0; i < this.walls.length; i++) {
-            this.walls[i].update();
+        else if (this.state == game_state.Menu) {
+            if (this.state_changed == true) {
+                this.tutorial.classList.add("hidden");
+                this.menu.classList.remove("hidden");
+                this.win.classList.add("hidden");
+                this.state_changed = false;
+                let letters = document.querySelectorAll("#menu h1 span[data-i]");
+                for (const l of letters) {
+                    l.style.color = color_codes[l.dataset.i];
+                }
+            }
+            let letters = document.querySelectorAll("#menu h1 span[data-i]");
+            for (const l of letters)
+                l.style.transform = `translateY(${Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5)}vh)`;
         }
-        if (this.tanks_destroyed >= colors.length - 1) {
-            this.tanks_destroyed = 0;
-            this.setup_game_objects();
+        else if (this.state == game_state.Win) {
+            if (this.state_changed == true) {
+                this.state_changed = false;
+                this.tutorial.classList.add("hidden");
+                this.menu.classList.add("hidden");
+                this.win.classList.remove("hidden");
+                let win_color = this.tanks.find(t => !t.destroyed).id;
+                let color = document.querySelector("#win h1#color span");
+                color.textContent = colors[win_color];
+                color.style.color = color_codes[win_color];
+                let letters = document.querySelectorAll("#win h1 span[data-i]");
+                for (const l of letters) {
+                    l.style.color = color_codes[l.dataset.i];
+                }
+                this.tanks_destroyed = 0;
+                this.setup_game_objects();
+            }
+            let letters = document.querySelectorAll("#win h1 span[data-i]");
+            for (const l of letters)
+                l.style.translate = `translateY(${Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5)}vh)`;
         }
     }
     render() {
-        renderer.update();
-        renderer.fill_rect(0, 0, renderer.canvas_width / renderer.scale, renderer.canvas_height / renderer.scale, bg_color);
+        this.renderer.update();
+        this.renderer.fill_rect(0, 0, this.renderer.canvas_width / this.renderer.scale, this.renderer.canvas_height / this.renderer.scale, bg_color);
 
         for (let i = 0; i < this.bullets.length; i++) {
             this.bullets[i].render();
@@ -507,9 +652,12 @@ class game {
         for (let i = 0; i < colors.length; i++) {
             this.controls[i].render();
         }
+        for (let i = 0; i < this.bushes.length; i++) {
+            this.bushes[i].render();
+        }
         for (let [id, p] of this.pointers) {
-            renderer.fill_ellipse(p.x / renderer.scale, p.y / renderer.scale, 15, 15, 0, '#ffffff69');
-            renderer.draw_ellipse(p.x / renderer.scale, p.y / renderer.scale, 18, 18, 0, '#79797994', 6);
+            this.renderer.fill_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 15, 15, 0, '#ffffff69');
+            this.renderer.draw_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 18, 18, 0, '#79797994', 6);
         }
     }
 }
