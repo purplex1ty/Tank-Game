@@ -6,7 +6,7 @@ const wall_size = 35;                       //units
 const wall_offset = 3;                      //units
 const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: units
 const tank_size = 40;                       //units
-const tank_speed = 2;                       //units/tick
+const tank_speed = 1.5;                     //units/tick
 const tank_rotation_speed = 3;              //degrees/tick
 const tank_cooldown = 30;                   //ticks
 const bullet_speed = 5;                     //units/tick
@@ -21,6 +21,7 @@ const color_codes = ['#F7E967', '#4A90E2', '#D0021B', '#7ED321'];
 
 //-------- DEBUG --------
 const debug = false;
+const skip_start_menu = false;
 
 //------- RENDERING -------
 class renderer {
@@ -171,16 +172,9 @@ class tank {
         //check for collision
         for (let i = 0; i < colors.length; i++) {
             const tank = this.game.tanks[i];
-            if (tank != this) {
-                while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2)) {
-                    const x_diff = (this.x - tank.x) / 40;
-                    const y_diff = (this.y - tank.y) / 40;
-                    tank.x -= x_diff;
-                    tank.y -= y_diff;
-                    this.x += x_diff;
-                    this.y += y_diff;
-                }
-            }
+            if (tank != this)
+                while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2))
+                    this.game.resolve_collision(this, tank);
         }
     }
     render() {
@@ -225,7 +219,7 @@ class bullet {
             const tank = this.game.tanks[i];
             if (tank.id != this.id) {
                 const radians = this.orientation * Math.PI / 180;
-                if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size - 25)) {
+                if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size / 2)) {
                     this.delete();
                     if (!tank.destroyed) {
                         tank.destroyed = true;
@@ -234,6 +228,14 @@ class bullet {
                     }
                 }
             }
+        }
+
+        //check if hitting any wall
+        for (let i = 0; i < this.game.walls.length; i++) {
+            const wall = this.game.walls[i];
+            const radians = this.orientation * Math.PI / 180;
+            if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, wall.x, wall.y, wall_size / 2))
+                this.delete();
         }
     }
     render() {
@@ -244,7 +246,6 @@ class bullet {
         }
     }
 }
-
 class wall {
     id = 0;
     x = 0;
@@ -275,9 +276,18 @@ class wall {
             this.orientation = 90;
         }
     }
-
     update() {
-
+        for (let i = 0; i < colors.length; i++) {
+            const tank = this.game.tanks[i];
+            while (this.game.rotated_rect_circle_collision(tank.x, tank.y, tank_size / 2, this.x, this.y, wall_size, wall_size * 3 / 5, this.orientation))
+                this.game.resolve_collision(this, tank);
+        }
+        for (let i = 0; i < this.game.walls.length; i++) {
+            const wall = this.game.walls[i];
+            if (wall != this)
+                while (this.game.rotated_rectangles_collision(this.x, this.y, wall_size, wall_size * 3 / 5, this.orientation, wall.x, wall.y, wall_size, wall_size * 3 / 5, wall.orientation))
+                    this.game.resolve_collision(this, wall);
+        }
     }
     render() {
         renderer.draw_rotated_image(this.image, this.x, this.y, wall_size, -1, this.orientation);
@@ -388,6 +398,83 @@ class game {
         }
         return false;
     }
+    distance_points(fromX, fromY, toX, toY) {
+        const a = Math.abs(fromX - toX);
+        const b = Math.abs(fromY - toY);
+        return Math.sqrt((a * a) + (b * b));
+    };
+    rotated_rect_circle_collision(cx, cy, cr, rx, ry, rw, rh, rr) {
+        // Rotate circle's center point back
+        const unrotated_cx = Math.cos(-rr) * (cx - rx) - Math.sin(-rr) * (cy - ry) + rx;
+        const unrotated_cy = Math.sin(-rr) * (cx - rx) + Math.cos(-rr) * (cy - ry) + ry;
+
+        let closest_x, closest_y;
+
+        let rxx = rx - rw / 2;  //top left corner of rect
+        let ryy = ry - rh / 2;
+        if (unrotated_cx < rxx)
+            closest_x = rxx;
+        else if (unrotated_cx > rxx + rw)
+            closest_x = rxx + rw;
+        else
+            closest_x = unrotated_cx;
+
+        if (unrotated_cy < ryy)
+            closest_y = ryy;
+        else if (unrotated_cy > ryy + rh)
+            closest_y = ryy + rh;
+        else
+            closest_y = unrotated_cy;
+
+        const dis = this.distance_points(unrotated_cx, unrotated_cy, closest_x, closest_y);
+        if (dis < cr)
+            return true;
+        return false;
+    }
+    rotated_rectangles_collision(rx, ry, rw, rh, rr, rx2, ry2, rw2, rh2, rr2) {
+        rr = rr * Math.PI / 180;
+        rr2 = rr2 * Math.PI / 180;
+        let r1HW = rw / 2;
+        let r1HH = rh / 2;
+        let r2HW = rw2 / 2;
+        let r2HH = rh2 / 2;
+
+        let cosR1A = Math.cos(rr);
+        let sinR1A = Math.sin(rr);
+        let cosR2A = Math.cos(rr2);
+        let sinR2A = Math.sin(rr2);
+
+        let r1RX = cosR2A * (rx - rx2) + sinR2A * (ry - ry2) + rx2 - r1HW;
+        let r1RY = -sinR2A * (rx - rx2) + cosR2A * (ry - ry2) + ry2 - r1HH;
+        let r2RX = cosR1A * (rx2 - rx) + sinR1A * (ry2 - ry) + rx - r2HW;
+        let r2RY = -sinR1A * (rx2 - rx) + cosR1A * (ry2 - ry) + ry - r2HH;
+
+        let cosR1AR2A = Math.abs(cosR1A * cosR2A + sinR1A * sinR2A);
+        let sinR1AR2A = Math.abs(sinR1A * cosR2A - cosR1A * sinR2A);
+        let cosR2AR1A = Math.abs(cosR2A * cosR1A + sinR2A * sinR1A);
+        let sinR2AR1A = Math.abs(sinR2A * cosR1A - cosR2A * sinR1A);
+
+        let r1BBH = rw * sinR1AR2A + rh * cosR1AR2A;
+        let r1BBW = rw * cosR1AR2A + rh * sinR1AR2A;
+        let r1BBX = r1RX + r1HW - r1BBW / 2;
+        let r1BBY = r1RY + r1HH - r1BBH / 2;
+
+        let r2BBH = rw2 * sinR2AR1A + rh2 * cosR2AR1A;
+        let r2BBW = rw2 * cosR2AR1A + rh2 * sinR2AR1A;
+        let r2BBX = r2RX + r2HW - r2BBW / 2;
+        let r2BBY = r2RY + r2HH - r2BBH / 2;
+
+        return rx - r1HW < r2BBX + r2BBW && rx + r1HW > r2BBX && ry - r1HH < r2BBY + r2BBH && ry + r1HH > r2BBY &&
+            rx2 - r2HW < r1BBX + r1BBW && rx2 + r2HW > r1BBX && ry2 - r2HH < r1BBY + r1BBH && ry2 + r2HH > r1BBY;
+    }
+    resolve_collision(me, other) {
+        const x_diff = Math.sign(me.x - other.x) / 2;
+        const y_diff = Math.sign(me.y - other.y) / 2;
+        other.x -= x_diff;
+        other.y -= y_diff;
+        me.x += x_diff;
+        me.y += y_diff;
+    }
     update() {
         for (let i = 0; i < colors.length; i++) {
             this.controls[i].update();
@@ -395,6 +482,9 @@ class game {
         }
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             this.bullets[i].update();
+        }
+        for (let i = 0; i < this.walls.length; i++) {
+            this.walls[i].update();
         }
         if (this.tanks_destroyed >= colors.length - 1) {
             this.tanks_destroyed = 0;
