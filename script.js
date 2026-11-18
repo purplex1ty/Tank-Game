@@ -1,17 +1,24 @@
 //------- CONSTANTS -------
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
-const control_size = 180; //units
-const tank_offset = 300;  //units
-const tank_size = 50;     //units
-const tank_speed = 2;     //units/tick
-const tank_rotation_speed = 3;  //degrees/tick
-const tank_cooldown = 60;  //ticks
-const bullet_speed = 5;   //units/tick
-const bullet_size = 10;   //units
-const bg_color = '#D5C69C'; //color
+const control_size = 160;                   //units
+const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: unitsy
+const tank_size = 40;                       //units
+const tank_speed = 2;                       //units/tick
+const tank_rotation_speed = 3;              //degrees/tick
+const tank_cooldown = 30;                   //ticks
+const bullet_speed = 5;                     //units/tick
+const bullet_size = 10;                     //units
+const bg_color = '#D5C69C';               //color
+
+const unit_width = 1000;                          //units
+const unit_height = unit_width * 9 / 16;          //units
 
 const colors = ['yellow', 'blue', 'red', 'green'];
+const color_codes = ['#F7E967', '#4A90E2', '#D0021B', '#7ED321'];
+
+//-------- DEBUG --------
+const debug = false;
 
 //------- RENDERING -------
 class renderer {
@@ -31,7 +38,7 @@ class renderer {
     update() {
         this.canvas_width = Math.min(this.html.clientWidth, this.html.clientHeight * 16 / 9);
         this.canvas_height = Math.min(this.html.clientHeight, this.html.clientWidth * 9 / 16);
-        this.scale = this.canvas_width / 1000;
+        this.scale = this.canvas_width / unit_width;
         this.canvas.width = this.canvas_width;
         this.canvas.height = this.canvas_height;
     }
@@ -88,39 +95,21 @@ class control {
     image_down = new Image();
 
     constructor(id) {
-        //check id valid
-        this.id = id >= 0 && id < colors.length ? id : -1;
-        this.image.src = `assets/game/controls/${colors[this.id]}.svg`;
-        this.image_down.src = `assets/game/controls/${colors[this.id]}_down.svg`;
-        //set position / rotation based on id
-        switch (id) {
-            case 0:
-                this.x = 0;
-                this.y = 0;
-                break;
-            case 1:
-                this.x = 1000 - control_size;
-                this.y = 0;
-                break;
-            case 2:
-                this.x = 0;
-                this.y = 1000 * 9 / 16 - control_size;
-                break;
-            case 3:
-                this.x = 1000 - control_size;
-                this.y = 1000 * 9 / 16 - control_size;
-                break;
-        }
+        this.id = id;
+        this.image.src = `assets/game/controls/control.${colors[this.id]}.svg`;
+        this.image_down.src = `assets/game/controls/control.${colors[this.id]}.down.svg`;
+
+        this.x = this.id % 2 ? unit_width - control_size : 0;
+        this.y = this.id >= 2 ? unit_height - control_size : 0;
     }
     update() {
         //check clicked
         this.down = mouse_down_box(this.x, this.y, control_size, control_size);
     }
     render() {
-        //draw it
-        if (this.id >= 0 && this.id < colors.length) {
-            renderer.draw_image(this.down ? this.image_down : this.image, this.x, this.y, control_size, control_size);
-        }
+        renderer.draw_image(this.down ? this.image_down : this.image, this.x, this.y, control_size, control_size);
+        if (debug)
+            renderer.draw_rect(this.x, this.y, control_size, control_size, color_codes[this.id], 3);
     }
 }
 class tank {
@@ -128,38 +117,19 @@ class tank {
     destroyed = false;
     cooldown = 0;
     last_control_state = false;
-    x = 500;
-    y = 500;
+    x = 0;
+    y = 0;
     orientation = 0;
     rot_multiplier = 1;
     image = new Image();
     game = null;
     constructor(id, game) {
-        //check id valid
-        this.id = id >= 0 && id < colors.length ? id : -1;
-        // this.image.src = `assets/game/tanks/${colors[this.id]}.svg`;
-        this.image.src = `assets/game/tanks/tank.svg`;
+        this.id = id;
+        this.image.src = `assets/game/tanks/tank.${colors[this.id]}.svg`;
         this.game = game;
 
-        //set start position based on id
-        switch (id) {
-            case 0:
-                this.x = tank_offset;
-                this.y = tank_offset / 16 * 9;
-                break;
-            case 1:
-                this.x = 1000 - tank_offset;
-                this.y = tank_offset / 16 * 9;
-                break;
-            case 2:
-                this.x = tank_offset;
-                this.y = (1000 - tank_offset) / 16 * 9;
-                break;
-            case 3:
-                this.x = 1000 - tank_offset;
-                this.y = (1000 - tank_offset) / 16 * 9;
-                break;
-        }
+        this.x = this.id % 2 ? unit_width - tank_spawn_pos.x : tank_spawn_pos.x;
+        this.y = this.id >= 2 ? unit_height - tank_spawn_pos.y : tank_spawn_pos.y;
     }
     update() {
         //if tank active (not destroyed)
@@ -172,27 +142,13 @@ class tank {
                     if (this.cooldown == 0) {
                         this.cooldown = tank_cooldown;
                         //shoot (instance a bullet)
-                        this.game.bullets.push(new bullet(this.id, this.x, this.y, this.orientation));
+                        this.game.bullets.push(new bullet(this.id, this.x, this.y, this.orientation, this.game));
                     }
                 }
                 //move it
                 const radians = this.orientation * Math.PI / 180;
                 this.x += tank_speed * Math.sin(radians);
                 this.y -= tank_speed * Math.cos(radians);
-
-                for (let i = 0; i < colors.length; i++) {
-                    const tank = this.game.tanks[i];
-                    if (tank != this) {
-                        while (circle_collision(this.x, this.y, tank_size - 25, tank.x, tank.y, tank_size - 25)) {
-                            const dir = Math.atan2(this.x - tank.x, this.y - tank.y) * 180 / Math.PI;
-                            console.log(dir);
-                            tank.x += Math.sin(radians);
-                            tank.y -= Math.cos(radians);
-                            this.x -= Math.sin(radians);
-                            this.y += Math.cos(radians);
-                        }
-                    }
-                }
             }
             //control not down, rotate it
             else {
@@ -203,18 +159,30 @@ class tank {
 
             //update cooldown
             this.cooldown -= 1;
-            console.log(this.cooldown);
             if (this.cooldown < 0) {
                 this.cooldown = 0;
             }
             this.last_control_state = this.game.controls[this.id].down;
         }
+        //check for collision
+        for (let i = 0; i < colors.length; i++) {
+            const tank = this.game.tanks[i];
+            if (tank != this) {
+                while (circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2)) {
+                    const x_diff = (this.x - tank.x) / 40;
+                    const y_diff = (this.y - tank.y) / 40;
+                    tank.x -= x_diff;
+                    tank.y -= y_diff;
+                    this.x += x_diff;
+                    this.y += y_diff;
+                }
+            }
+        }
     }
     render() {
-        //draw it
-        if (this.id >= 0 && this.id < colors.length) {
-            renderer.draw_rotated_image(this.image, this.x, this.y, tank_size, -1, this.orientation);
-        }
+        renderer.draw_rotated_image(this.image, this.x, this.y, tank_size, -1, this.orientation);
+        if (debug)
+            renderer.draw_ellipse(this.x, this.y, tank_size / 2, tank_size / 2, 0, color_codes[this.id], 3);
     }
 }
 class bullet {
@@ -226,15 +194,14 @@ class bullet {
     image = new Image();
     game = null;
 
-    constructor(id, x, y, orientation) {
-        //check id valid
-        this.id = id >= 0 && id < colors.length ? id : -1;
+    constructor(id, x, y, orientation, game) {
+        this.id = id;
         this.game = game;
         //set properties
         this.x = x;
         this.y = y;
         this.orientation = orientation;
-        this.image.src = `assets/game/bullets/bullet.svg`;
+        this.image.src = `assets/game/bullets/bullet.${colors[this.id]}.svg`;
     }
     delete() {
         const index = this.game.bullets.indexOf(this);
@@ -246,27 +213,49 @@ class bullet {
         this.y -= bullet_speed * Math.cos(this.orientation * Math.PI / 180);
 
         //check if outside border
-        if (this.x > 1500 || this.y > 1500 * 9 / 16 || this.x < -500 || this.y < -500)
+        if (this.x > unit_width + 200 || this.y > unit_height + 200 || this.x < -200 || this.y < -200)
             this.delete();
+
         //check if hitting any tank
         for (let i = 0; i < colors.length; i++) {
             const tank = this.game.tanks[i];
             if (tank.id != this.id) {
                 const radians = this.orientation * Math.PI / 180;
-                if (circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), 10, tank.x, tank.y, tank_size - 25)) {
+                if (circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size - 25)) {
                     this.delete();
-                    tank.destroyed = true;
+                    if (!tank.destroyed) {
+                        tank.destroyed = true;
+                        tank.image.src = `assets/game/tanks/tank.destroyed.svg`;
+                        this.game.tanks_destroyed++;
+                    }
                 }
             }
         }
     }
     render() {
-        //draw it
-        if (this.id >= 0 && this.id < colors.length) {
-            renderer.draw_rotated_image(this.image, this.x, this.y, bullet_size, -1, this.orientation);
+        renderer.draw_rotated_image(this.image, this.x, this.y, bullet_size, -1, this.orientation);
+        if (debug) {
+            const radians = this.orientation * Math.PI / 180;
+            renderer.draw_ellipse(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, bullet_size / 2, 0, color_codes[this.id], 3);
         }
     }
 }
+// class wall {
+//     id = 0;
+//     x = 0;
+//     y = 0;
+//     orientation = 0;
+//     image = new Image();
+
+//     constructor(id) {
+//         this.id = id;
+//         this.orientation = 0;
+//         this.image.src = `assets/game/walls/wall.svg`;
+
+
+//     }
+// }
+
 class game {
     //game timing
     ticks_per_second = 60;
@@ -277,6 +266,7 @@ class game {
     //game objects
     controls = new Array(colors.length);
     tanks = new Array(colors.length);
+    walls = new Array();
     bullets = new Array();
 
     //game images
@@ -285,6 +275,9 @@ class game {
 
     //mouse detection
     pointers = new Map();
+
+    //game variables
+    tanks_destroyed = 0;
 
     constructor() {
         this.setup_game_objects();
@@ -301,9 +294,11 @@ class game {
         requestAnimationFrame(this.tick.bind(this));
     }
     setup_game_objects() {
+        this.bullets.length = 0;
         for (let i = 0; i < colors.length; i++) {
             this.controls[i] = new control(i);
             this.tanks[i] = new tank(i, this);
+            this.walls[i] = new wall(i);
         }
     }
     setup_styles() {
@@ -346,6 +341,10 @@ class game {
         }
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             this.bullets[i].update();
+        }
+        if (this.tanks_destroyed >= colors.length - 1) {
+            this.tanks_destroyed = 0;
+            this.setup_game_objects();
         }
     }
     render() {
