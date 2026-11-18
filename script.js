@@ -2,7 +2,9 @@
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
 const control_size = 160;                   //units
-const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: unitsy
+const wall_size = 35;                       //units
+const wall_offset = 3;                      //units
+const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: units
 const tank_size = 40;                       //units
 const tank_speed = 2;                       //units/tick
 const tank_rotation_speed = 3;              //degrees/tick
@@ -93,18 +95,20 @@ class control {
     down = false;
     image = new Image();
     image_down = new Image();
+    game = null;
 
-    constructor(id) {
+    constructor(id, game) {
         this.id = id;
         this.image.src = `assets/game/controls/control.${colors[this.id]}.svg`;
         this.image_down.src = `assets/game/controls/control.${colors[this.id]}.down.svg`;
 
         this.x = this.id % 2 ? unit_width - control_size : 0;
         this.y = this.id >= 2 ? unit_height - control_size : 0;
+        this.game = game;
     }
     update() {
         //check clicked
-        this.down = mouse_down_box(this.x, this.y, control_size, control_size);
+        this.down = this.game.mouse_down_box(this.x, this.y, control_size, control_size);
     }
     render() {
         renderer.draw_image(this.down ? this.image_down : this.image, this.x, this.y, control_size, control_size);
@@ -168,7 +172,7 @@ class tank {
         for (let i = 0; i < colors.length; i++) {
             const tank = this.game.tanks[i];
             if (tank != this) {
-                while (circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2)) {
+                while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2)) {
                     const x_diff = (this.x - tank.x) / 40;
                     const y_diff = (this.y - tank.y) / 40;
                     tank.x -= x_diff;
@@ -221,7 +225,7 @@ class bullet {
             const tank = this.game.tanks[i];
             if (tank.id != this.id) {
                 const radians = this.orientation * Math.PI / 180;
-                if (circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size - 25)) {
+                if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size - 25)) {
                     this.delete();
                     if (!tank.destroyed) {
                         tank.destroyed = true;
@@ -240,21 +244,45 @@ class bullet {
         }
     }
 }
-// class wall {
-//     id = 0;
-//     x = 0;
-//     y = 0;
-//     orientation = 0;
-//     image = new Image();
 
-//     constructor(id) {
-//         this.id = id;
-//         this.orientation = 0;
-//         this.image.src = `assets/game/walls/wall.svg`;
+class wall {
+    id = 0;
+    x = 0;
+    y = 0;
+    orientation = 0;
+    image = new Image();
+    game = null;
 
+    constructor(id, game) {
+        this.id = id;
+        this.game = game;
+        this.orientation = 0;
+        this.image.src = `assets/game/walls/wall.svg`;
 
-//     }
-// }
+        let tank_index = Math.floor(this.id / 16);
+        this.x = tank_index % 2 ? unit_width - tank_spawn_pos.x : tank_spawn_pos.x;
+        this.y = tank_index >= 2 ? unit_height - tank_spawn_pos.y : tank_spawn_pos.y;
+
+        let wall_index = this.id % 16;
+        let wall_size_total = wall_offset + wall_size;
+        if (wall_index <= 9) {
+            this.y += wall_index <= 4 ? wall_size * 2 : -wall_size * 2;
+            this.x += (wall_index % 5 - 2) * wall_size_total;
+        }
+        else {
+            this.x += wall_index <= 12 ? wall_size * 3 : -wall_size * 3;
+            this.y += (wall_index % 3 - 1) * wall_size_total;
+            this.orientation = 90;
+        }
+    }
+
+    update() {
+
+    }
+    render() {
+        renderer.draw_rotated_image(this.image, this.x, this.y, wall_size, -1, this.orientation);
+    }
+}
 
 class game {
     //game timing
@@ -266,7 +294,7 @@ class game {
     //game objects
     controls = new Array(colors.length);
     tanks = new Array(colors.length);
-    walls = new Array();
+    walls = new Array(colors.length * 16);
     bullets = new Array();
 
     //game images
@@ -296,10 +324,11 @@ class game {
     setup_game_objects() {
         this.bullets.length = 0;
         for (let i = 0; i < colors.length; i++) {
-            this.controls[i] = new control(i);
+            this.controls[i] = new control(i, this);
             this.tanks[i] = new tank(i, this);
-            // this.walls[i] = new wall(i);
         }
+        for (let i = 0; i < this.walls.length; i++)
+            this.walls[i] = new wall(i, this);
     }
     setup_styles() {
         document.body.style.cssText = "background-color: #000000; margin: 0; padding: 0; overflow: hidden;";
@@ -309,9 +338,11 @@ class game {
         renderer.canvas.addEventListener("gesturestart", e => e.preventDefault());
         renderer.canvas.addEventListener("touchstart", e => e.preventDefault(), { passive: false });
         renderer.canvas.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
-
-        renderer.canvas.addEventListener('contextmenu', e => {
-            e.preventDefault();
+        renderer.canvas.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener("keydown", e => {
+            if (e.key === "d") {
+                this.debug = !this.debug;
+            }
         });
         window.addEventListener("pointerdown", e => {
             this.pointers.set(e.pointerId, this.getPos(e));
@@ -333,6 +364,29 @@ class game {
                 x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, type: e.pointerType // "mouse", "touch", "pen"
             };
         };
+    }
+    mouse_down_box(x, y, w, h) {
+        for (const [id, p] of this.pointers) {
+            if (p.x >= x * renderer.scale && p.x <= (x + w) * renderer.scale && p.y >= y * renderer.scale && p.y <= (y + h) * renderer.scale) {
+                return true;
+            }
+        }
+        return false;
+    }
+    mouse_down_circle(x, y, r) {
+        for (const [id, p] of this.pointers) {
+            const distance = Math.sqrt((p.x - x * renderer.scale) ** 2 + (p.y - y * renderer.scale) ** 2);
+            if (distance <= r * renderer.scale) {
+                return true;
+            }
+        }
+        return false;
+    }
+    circle_collision(x, y, r, x2, y2, r2) {
+        if (Math.abs((x - x2) ** 2 + (y - y2) ** 2) < (r + r2) ** 2) {
+            return true;
+        }
+        return false;
     }
     update() {
         for (let i = 0; i < colors.length; i++) {
@@ -357,6 +411,9 @@ class game {
         for (let i = 0; i < colors.length; i++) {
             this.tanks[i].render();
         }
+        for (let i = 0; i < this.walls.length; i++) {
+            this.walls[i].render();
+        }
         for (let i = 0; i < colors.length; i++) {
             this.controls[i].render();
         }
@@ -365,30 +422,6 @@ class game {
             renderer.draw_ellipse(p.x / renderer.scale, p.y / renderer.scale, 18, 18, 0, '#79797994', 6);
         }
     }
-}
-
-function mouse_down_box(x, y, w, h) {
-    for (const [id, p] of game.pointers) {
-        if (p.x >= x * renderer.scale && p.x <= (x + w) * renderer.scale && p.y >= y * renderer.scale && p.y <= (y + h) * renderer.scale) {
-            return true;
-        }
-    }
-    return false;
-}
-function mouse_down_circle(x, y, r) {
-    for (const [id, p] of pointers) {
-        const distance = Math.sqrt((p.x - x * scale) ** 2 + (p.y - y * scale) ** 2);
-        if (distance <= r * scale) {
-            return true;
-        }
-    }
-}
-
-function circle_collision(x, y, r, x2, y2, r2) {
-    if (Math.abs((x - x2) ** 2 + (y - y2) ** 2) < (r + r2) ** 2) {
-        return true;
-    }
-    return false;
 }
 
 game = new game();
