@@ -22,6 +22,3 @@ Find the html & javascript code and demo [here](https://github.com/C-PLUS-PLUSan
 
 ## Server
 Code for esp32 hosting [here](https://github.com/C-PLUS-PLUSandPYTHON/Tank-Game/tree/server)
-
-## Contributing
-Currently, 
