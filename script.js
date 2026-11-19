@@ -196,10 +196,12 @@ class tank {
             if (tank != this)
                 while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2))
                     this.game.resolve_collision(this, tank);
-            const control = this.game.controls[i];
-            if (this.game.distance_points(this.x, this.y, control.x, control.y) < control_size) {
-                console.log(1);
-                const r = Math.atan2()
+            const x = i % 2 ? unit_width : 0;
+            const y = i >= 2 ? unit_height : 0;
+            if (this.game.circle_collision(this.x, this.y, control_size, x, y, tank_size / 2)) {
+                const r = this.game.calculate_point_angle(x, y, this.x, this.y) / 180 * Math.PI;
+                this.x = x + Math.sin(r) * (control_size + tank_size / 2);
+                this.y = y + Math.cos(r) * (control_size + tank_size / 2);
             }
         }
         this.x = clamp(this.x, tank_size / 2, (unit_width - tank_size / 2));
@@ -516,10 +518,13 @@ class game {
         return false;
     }
     distance_points(fromX, fromY, toX, toY) {
-        const a = Math.abs(fromX - toX);
-        const b = Math.abs(fromY - toY);
+        const a = fromX - toX;
+        const b = fromY - toY;
         return Math.sqrt((a * a) + (b * b));
     };
+    calculate_point_angle(x, y, x1, y1) {
+        return Math.atan2(x1 - x, y1 - y) * 180 / Math.PI;
+    }
     rotated_rect_circle_collision(cx, cy, cr, rx, ry, rw, rh, rr) {
         // Rotate circle's center point back
         const unrotated_cx = Math.cos(-rr) * (cx - rx) - Math.sin(-rr) * (cy - ry) + rx;
