@@ -2,7 +2,7 @@
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
 const control_size = 160;                   //units
-const bush_size = 60;                       //units
+const bush_size = 40;                       //units
 const wall_size = 35;                       //units
 const wall_offset = 3;                      //units
 const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: units
@@ -28,7 +28,7 @@ const game_state = Object.freeze({
 });
 
 //-------- DEBUG --------
-const debug = false;
+const debug = true;
 const alternative_start_state = game_state.Playing;
 
 //------- RENDERING -------
@@ -70,14 +70,24 @@ class renderer {
         this.context.drawImage(image, -width / 2 * this.scale, -height / 2 * this.scale, width * this.scale, height * this.scale);
         this.context.restore();
     }
-    fill_rect(x, y, width, height, color) {
+    fill_rect(x, y, width, height, rotation, color) {
+        this.context.save();
+        this.context.translate((x + width / 2) * this.scale, (y + height / 2) * this.scale);
+        this.context.rotate(rotation * Math.PI / 180);
+        this.context.translate(-(x + width / 2) * this.scale, -(y + height / 2) * this.scale);
         this.context.fillStyle = color;
         this.context.fillRect(x * this.scale, y * this.scale, width * this.scale, height * this.scale);
+        this.context.restore();
     }
-    draw_rect(x, y, width, height, color, line_width) {
+    draw_rect(x, y, width, height, color, rotation, line_width) {
+        this.context.save();
+        this.context.translate((x + width / 2) * this.scale, (y + height / 2) * this.scale);
+        this.context.rotate(rotation * Math.PI / 180);
+        this.context.translate(-(x + width / 2) * this.scale, -(y + height / 2) * this.scale);
         this.context.strokeStyle = color;
         this.context.lineWidth = line_width * this.scale;
         this.context.strokeRect(x * this.scale, y * this.scale, width * this.scale, height * this.scale);
+        this.context.restore();
     }
     fill_ellipse(x, y, radius_x, radius_y, rotation, fill_color) {
         this.context.fillStyle = fill_color;
@@ -92,6 +102,10 @@ class renderer {
         this.context.ellipse(x * this.scale, y * this.scale, radius_x * this.scale, radius_y * this.scale, rotation * Math.PI / 180, 0, 2 * Math.PI);
         this.context.stroke();
     }
+}
+
+function clamp(x, min, max) {
+    return x < min ? min : x > max ? max : x;
 }
 
 //------- GAME -------
@@ -121,7 +135,7 @@ class control {
     render() {
         this.game.renderer.draw_image(this.down ? this.image_down : this.image, this.x, this.y, control_size, control_size);
         if (debug)
-            this.game.renderer.draw_rect(this.x, this.y, control_size, control_size, color_codes[this.id], 3);
+            this.game.renderer.draw_rect(this.x, this.y, control_size, control_size, color_codes[this.id], 0, 3);
     }
 }
 class tank {
@@ -182,7 +196,14 @@ class tank {
             if (tank != this)
                 while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2))
                     this.game.resolve_collision(this, tank);
+            const control = this.game.controls[i];
+            if (this.game.distance_points(this.x, this.y, control.x, control.y) < control_size) {
+                console.log(1);
+                const r = Math.atan2()
+            }
         }
+        this.x = clamp(this.x, tank_size / 2, (unit_width - tank_size / 2));
+        this.y = clamp(this.y, tank_size / 2, (unit_height - tank_size / 2));
     }
     render() {
         this.game.renderer.draw_rotated_image(this.image, this.x, this.y, tank_size, -1, this.orientation);
@@ -308,6 +329,8 @@ class wall {
     }
     render() {
         this.game.renderer.draw_rotated_image(this.image, this.x, this.y, wall_size, -1, this.orientation);
+        if (debug)
+            this.game.renderer.draw_rect(this.x - wall_size / 2, this.y - wall_size / 10 * 3, wall_size, wall_size / 5 * 3, '#b45100', this.orientation, 3);
     }
 }
 class bush {
@@ -638,7 +661,7 @@ class game {
     }
     render() {
         this.renderer.update();
-        this.renderer.fill_rect(0, 0, this.renderer.canvas_width / this.renderer.scale, this.renderer.canvas_height / this.renderer.scale, bg_color);
+        this.renderer.fill_rect(0, 0, unit_width, unit_height, 0, bg_color);
 
         for (let i = 0; i < this.bullets.length; i++) {
             this.bullets[i].render();
