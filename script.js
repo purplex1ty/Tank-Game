@@ -1,6 +1,7 @@
 //------- CONSTANTS -------
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
+const countdown_size = 180;                 //units
 const control_size = 160;                   //units
 const bush_size = 40;                       //units
 const wall_size = 35;                       //units
@@ -14,8 +15,8 @@ const bullet_speed = 5;                     //units/tick
 const bullet_size = 10;                     //units
 const bg_color = '#D5C69C';               //color
 
-const unit_width = 1000;                          //units
-const unit_height = unit_width * 9 / 16;          //units
+const unit_width = 1000;                    //units
+const unit_height = unit_width * 9 / 16;    //units
 
 const colors = ['yellow', 'blue', 'red', 'green'];
 const color_codes = ['#eedb2f', '#4a91e2', '#d0021a', '#72cf0f'];
@@ -60,6 +61,7 @@ class renderer {
     }
     draw_image_centered(image, x, y, width, height) {
         height = height == -1 ? width * image.height / image.width : height;
+        width = width == -1 ? height * image.width / image.height : width;
         this.context.drawImage(image, (x - width / 2) * this.scale, (y - height / 2) * this.scale, width * this.scale, height * this.scale);
     }
     draw_rotated_image(image, x, y, width, height, angle) {
@@ -155,13 +157,13 @@ class tank {
         if (!this.destroyed) {
             //if its control is down, move / shoot
             if (this.game.controls[this.id].down) {
-                //if it's the first time shooting
+                //if it's the first frame where the control is down
                 if (!this.last_control_state) {
                     this.rot_multiplier *= -1;
                     if (this.cooldown == 0) {
                         this.cooldown = tank_cooldown;
                         //shoot (instance a bullet)
-                        this.game.bullets.push(new bullet(this.id, this.x, this.y, this.orientation, this.game));
+                        this.game.bullets.push(new bullet(this.id, this.x + tank_size / 2 * Math.sin(this.orientation), this.y - tank_size / 2 * Math.cos(this.orientation), this.orientation, this.game));
                     }
                 }
                 //move it
@@ -267,7 +269,7 @@ class bullet {
     render() {
         this.game.renderer.draw_rotated_image(this.game.bullet_images[this.id], this.x, this.y, bullet_size, -1, this.orientation);
         if (debug) {
-            this.game.renderer.draw_ellipse(this.x + bullet_size * Math.sin(this.orientation), this.y - bullet_size * Math.cos(this.orientation), bullet_size / 2, bullet_size / 2, 0, color_codes[this.id], 3);
+            this.game.renderer.draw_ellipse(this.x, this.y, bullet_size / 2, bullet_size / 2, 0, color_codes[this.id], 3);
         }
     }
 }
@@ -378,12 +380,13 @@ class game {
     menu = null;
     tutorial = null;
     win = null;
+    countdown_end = -1;
     //game timing
     ticks_per_second = 60;
     ms_per_tick = 1000 / this.ticks_per_second;
     accumulated_time = 0;
     time = 0;
-    last_time = performance.now();
+    last_time = 0;
 
     //game objects
     controls = new Array(colors.length);
@@ -400,6 +403,7 @@ class game {
     wall_image = new Image;
     control_images = new Array(colors.length);
     control_images_down = new Array(colors.length);
+    countdown_images = new Array(4);
 
     //mouse detection
     pointers = new Map();
@@ -437,6 +441,10 @@ class game {
             this.control_images[i].src = `assets/game/controls/control.${colors[i]}.svg`;
             this.control_images_down[i] = new Image;
             this.control_images_down[i].src = `assets/game/controls/control.${colors[i]}.down.svg`;
+        }
+        for (let i = 0; i < this.countdown_images.length; i++) {
+            this.countdown_images[i] = new Image;
+            this.countdown_images[i].src = `assets/game/countdown/countdown.${[i]}.svg`;
         }
         this.tank_image_destroyed.src = `assets/game/tanks/tank.destroyed.svg`;
         this.bush_image.src = `assets/game/bushes/bush.svg`
@@ -616,6 +624,7 @@ class game {
                 this.tutorial.classList.add("hidden");
                 this.menu.classList.add("hidden");
                 this.win.classList.add("hidden");
+                this.countdown_end = this.time + 4;
             }
             for (let i = 0; i < colors.length; i++) {
                 this.controls[i].update();
@@ -698,6 +707,16 @@ class game {
         for (let [id, p] of this.pointers) {
             this.renderer.fill_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 15, 15, 0, '#ffffff69');
             this.renderer.draw_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 18, 18, 0, '#79797994', 6);
+        }
+        if (this.countdown_end != -1) {
+            const countdown_time = this.countdown_end - this.time;
+            if (countdown_time < 0)
+                this.countdown_end = -1;
+            else {
+                if (countdown_time < .4)
+                    this.renderer.context.globalAlpha = countdown_time / .4;
+                this.renderer.draw_image_centered(this.countdown_images[Math.floor(countdown_time)], unit_width / 2, unit_height / 2, -1, countdown_size - (countdown_time % 1) * 50);
+            }
         }
     }
 }
