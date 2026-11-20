@@ -242,7 +242,6 @@ class bullet {
                     this.delete();
                     if (!tank.destroyed) {
                         tank.destroyed = true;
-                        tank.image.src = `assets/game/tanks/tank.destroyed.svg`;
                         this.game.tanks_destroyed++;
                     }
                 }
