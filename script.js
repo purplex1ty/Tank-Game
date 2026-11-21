@@ -247,10 +247,10 @@ class bullet {
                 const radians = this.orientation;
                 if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size / 2)) {
                     this.delete();
-                    tank.health -= 1;
-                    if (tank.health <= 0) {
-                        tank.health = 0;
-                        this.game.tanks_destroyed++;
+                    if (tank.health) {
+                        tank.health -= 1;
+                        if (tank.health == 0)
+                            this.game.tanks_destroyed++;
                     }
                 }
             }
