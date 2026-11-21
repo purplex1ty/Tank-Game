@@ -2,9 +2,13 @@
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
 const countdown_size = 180;                 //units
+const healthbar_size = 40;                  //units
+const border_width = 12;                    //units
+const healthbar_offset = 25;                //units
 const control_size = 160;                   //units
 const bush_size = 40;                       //units
-const wall_size = 35;                       //units
+const wall_width = 35;                      //units
+const wall_height = wall_width * 3 / 5;     //units
 const wall_offset = 3;                      //units
 const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: units
 const tank_size = 40;                       //units
@@ -137,7 +141,7 @@ class control {
 }
 class tank {
     id = -1;
-    destroyed = false;
+    health = 2;
     cooldown = 0;
     last_control_state = false;
     x = 0;
@@ -154,7 +158,7 @@ class tank {
     }
     update() {
         //if tank active (not destroyed)
-        if (!this.destroyed) {
+        if (this.health) {
             //if its control is down, move / shoot
             if (this.game.controls[this.id].down) {
                 //if it's the first frame where the control is down
@@ -198,11 +202,12 @@ class tank {
                 this.y = y + Math.cos(r) * (control_size + tank_size / 2);
             }
         }
-        this.x = clamp(this.x, tank_size / 2, (unit_width - tank_size / 2));
-        this.y = clamp(this.y, tank_size / 2, (unit_height - tank_size / 2));
+        this.x = clamp(this.x, tank_size / 2 + border_width, (unit_width - border_width - tank_size / 2));
+        this.y = clamp(this.y, tank_size / 2 + border_width, (unit_height - border_width - tank_size / 2));
     }
     render() {
-        this.game.renderer.draw_rotated_image(this.destroyed ? this.game.tank_image_destroyed : this.game.tank_images[this.id], this.x, this.y, tank_size, -1, this.orientation);
+        this.game.renderer.draw_rotated_image(this.health ? this.game.tank_images[this.id] : this.game.tank_image_destroyed, this.x, this.y, tank_size, -1, this.orientation);
+        this.game.renderer.draw_image_centered(this.game.healthbar_images[this.health], this.x, this.y - healthbar_offset, healthbar_size, -1);
         if (debug)
             this.game.renderer.draw_ellipse(this.x, this.y, tank_size / 2, tank_size / 2, 0, color_codes[this.id], 3);
     }
@@ -242,8 +247,9 @@ class bullet {
                 const radians = this.orientation;
                 if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size / 2)) {
                     this.delete();
-                    if (!tank.destroyed) {
-                        tank.destroyed = true;
+                    tank.health -= 1;
+                    if (tank.health <= 0) {
+                        tank.health = 0;
                         this.game.tanks_destroyed++;
                     }
                 }
@@ -253,7 +259,7 @@ class bullet {
         //check if hitting any wall
         for (let i = 0; i < this.game.walls.length; i++) {
             const wall = this.game.walls[i];
-            if (this.game.circle_collision(this.x + bullet_size * Math.sin(this.orientation), this.y - bullet_size * Math.cos(this.orientation), bullet_size / 2, wall.x, wall.y, wall_size / 2))
+            if (this.game.circle_collision(this.x + bullet_size * Math.sin(this.orientation), this.y - bullet_size * Math.cos(this.orientation), bullet_size / 2, wall.x, wall.y, wall_width / 2))
                 this.delete();
         }
 
@@ -290,45 +296,44 @@ class wall {
         this.y = tank_index >= 2 ? unit_height - tank_spawn_pos.y : tank_spawn_pos.y;
 
         let wall_index = this.id % 16;
-        let wall_size_total = wall_offset + wall_size;
+        let wall_width_total = wall_offset + wall_width;
         if (wall_index <= 9) {
-            this.y += wall_index <= 4 ? wall_size * 2 : -wall_size * 2;
-            this.x += (wall_index % 5 - 2) * wall_size_total;
+            this.y += wall_index <= 4 ? wall_width * 2 : -wall_width * 2;
+            this.x += (wall_index % 5 - 2) * wall_width_total;
         }
         else {
-            this.x += wall_index <= 12 ? wall_size * 3 : -wall_size * 3;
-            this.y += (wall_index % 3 - 1) * wall_size_total;
+            this.x += wall_index <= 12 ? wall_width * 3 : -wall_width * 3;
+            this.y += (wall_index % 3 - 1) * wall_width_total;
             this.orientation = Math.PI / 2;
         }
     }
     update() {
         for (let i = 0; i < colors.length; i++) {
             const tank = this.game.tanks[i];
-            while (this.game.rotated_rect_circle_collision(tank.x, tank.y, tank_size / 2, this.x, this.y, wall_size, wall_size * 3 / 5, this.orientation))
+            while (this.game.rotated_rect_circle_collision(tank.x, tank.y, tank_size / 2, this.x, this.y, wall_width, wall_height, this.orientation))
                 this.game.resolve_collision(this, tank);
 
             const x = i % 2 ? unit_width : 0;
             const y = i >= 2 ? unit_height : 0;
-            if (this.game.circle_collision(this.x, this.y, control_size, x, y, wall_size / 2)) {
+            if (this.game.circle_collision(this.x, this.y, control_size, x, y, wall_width / 2)) {
                 const r = this.game.calculate_point_angle(x, y, this.x, this.y);
-                this.x = x + Math.sin(r) * (control_size + wall_size / 2);
-                this.y = y + Math.cos(r) * (control_size + wall_size / 2);
+                this.x = x + Math.sin(r) * (control_size + wall_width / 2);
+                this.y = y + Math.cos(r) * (control_size + wall_width / 2);
             }
         }
         for (let i = 0; i < this.game.walls.length; i++) {
             const wall = this.game.walls[i];
             if (wall != this)
-                while (this.game.rotated_rectangles_collision(this.x, this.y, wall_size, wall_size * 3 / 5, this.orientation, wall.x, wall.y, wall_size, wall_size * 3 / 5, wall.orientation))
+                while (this.game.rotated_rectangles_collision(this.x, this.y, wall_width, wall_height, this.orientation, wall.x, wall.y, wall_width, wall_height, wall.orientation))
                     this.game.resolve_collision(this, wall);
         }
-
-        this.x = clamp(this.x, wall_size / 2, (unit_width - wall_size / 2));
-        this.y = clamp(this.y, wall_size / 2, (unit_height - wall_size / 2));
+        this.x = clamp(this.x, wall_width / 2 + border_width, (unit_width - border_width - wall_width / 2));
+        this.y = clamp(this.y, wall_width / 2 + border_width, (unit_height - border_width - wall_width / 2));
     }
     render() {
-        this.game.renderer.draw_rotated_image(this.game.wall_image, this.x, this.y, wall_size, -1, this.orientation);
+        this.game.renderer.draw_rotated_image(this.game.wall_image, this.x, this.y, wall_width, -1, this.orientation);
         if (debug)
-            this.game.renderer.draw_rect(this.x - wall_size / 2, this.y - wall_size / 10 * 3, wall_size, wall_size / 5 * 3, '#b45100', this.orientation, 3);
+            this.game.renderer.draw_rect(this.x - wall_width / 2, this.y - wall_width / 10 * 3, wall_width, wall_height, '#b45100', this.orientation, 3);
     }
 }
 class bush {
@@ -397,10 +402,11 @@ class game {
 
     //game images
     tank_images = new Array(colors.length);
-    tank_image_destroyed = new Image;
+    healthbar_images = new Array(3);
+    tank_image_destroyed = new Image();
     bullet_images = new Array(colors.length);
-    bush_image = new Image;
-    wall_image = new Image;
+    bush_image = new Image();
+    wall_image = new Image();
     control_images = new Array(colors.length);
     control_images_down = new Array(colors.length);
     countdown_images = new Array(4);
@@ -445,6 +451,10 @@ class game {
         for (let i = 0; i < this.countdown_images.length; i++) {
             this.countdown_images[i] = new Image;
             this.countdown_images[i].src = `assets/game/countdown/countdown.${[i]}.svg`;
+        }
+        for (let i = 0; i < this.healthbar_images.length; i++) {
+            this.healthbar_images[i] = new Image;
+            this.healthbar_images[i].src = `assets/game/healthbars/health.${[i]}.svg`;
         }
         this.tank_image_destroyed.src = `assets/game/tanks/tank.destroyed.svg`;
         this.bush_image.src = `assets/game/bushes/bush.svg`
@@ -628,7 +638,8 @@ class game {
             }
             for (let i = 0; i < colors.length; i++) {
                 this.controls[i].update();
-                this.tanks[i].update();
+                if (this.countdown_end == -1)
+                    this.tanks[i].update();
             }
             for (let i = this.bullets.length - 1; i >= 0; i--) {
                 this.bullets[i].update();
@@ -669,7 +680,7 @@ class game {
                 this.tutorial.classList.add("hidden");
                 this.menu.classList.add("hidden");
                 this.win.classList.remove("hidden");
-                let win_color = this.tanks.find(t => !t.destroyed).id;
+                let win_color = this.tanks.find(t => t.health > 0).id;
                 let color = document.querySelector("#win h1#color span");
                 color.textContent = colors[win_color];
                 color.style.color = color_codes[win_color];
@@ -689,20 +700,33 @@ class game {
         this.renderer.update();
         this.renderer.fill_rect(0, 0, unit_width, unit_height, 0, bg_color);
 
+        this.renderer.context.globalAlpha = 1 / border_width;
+        for (let i = 1; i <= border_width; i += .3) {
+            this.renderer.fill_rect(0, 0, unit_width, i, 0, '#25003d');
+            this.renderer.fill_rect(0, 0, i, unit_height, 0, '#25003d');
+            this.renderer.fill_rect(0, unit_height, unit_width, -i, 0, '#25003d');
+            this.renderer.fill_rect(unit_width, 0, -i, unit_height, 0, '#25003d');
+            this.renderer.fill_ellipse(0, 0, control_size - i, control_size - i, 0, '#25003d');
+            this.renderer.fill_ellipse(unit_width, 0, control_size - i, control_size - i, 0, '#25003d');
+            this.renderer.fill_ellipse(0, unit_height, control_size - i, control_size - i, 0, '#25003d');
+            this.renderer.fill_ellipse(unit_width, unit_height, control_size - i, control_size - i, 0, '#25003d');
+        }
+
+        this.renderer.context.globalAlpha = 1;
+        for (let i = 0; i < this.bushes.length; i++) {
+            this.bushes[i].render();
+        }
+        for (let i = 0; i < this.walls.length; i++) {
+            this.walls[i].render();
+        }
         for (let i = 0; i < this.bullets.length; i++) {
             this.bullets[i].render();
         }
         for (let i = 0; i < colors.length; i++) {
             this.tanks[i].render();
         }
-        for (let i = 0; i < this.walls.length; i++) {
-            this.walls[i].render();
-        }
         for (let i = 0; i < colors.length; i++) {
             this.controls[i].render();
-        }
-        for (let i = 0; i < this.bushes.length; i++) {
-            this.bushes[i].render();
         }
         for (let [id, p] of this.pointers) {
             this.renderer.fill_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 15, 15, 0, '#ffffff69');
