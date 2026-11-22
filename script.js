@@ -1,26 +1,28 @@
 //------- CONSTANTS -------
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
-const countdown_size = 180;                 //units
-const healthbar_size = 40;                  //units
-const border_width = 12;                    //units
-const healthbar_offset = 25;                //units
-const control_size = 160;                   //units
-const bush_size = 40;                       //units
-const wall_width = 35;                      //units
-const wall_height = wall_width * 3 / 5;     //units
-const wall_offset = 3;                      //units
-const tank_spawn_pos = { x: 300, y: 150 };  //x: units, y: units
-const tank_size = 40;                       //units
-const tank_speed = 1.5;                     //units/tick
-const tank_rotation_speed = 3 / 180 * Math.PI;//radians/tick
-const tank_cooldown = 30;                   //ticks
-const bullet_speed = 5;                     //units/tick
-const bullet_size = 10;                     //units
-const bg_color = '#D5C69C';               //color
+const shield_duration = 180                       //ticks
+const shield_size = 55;                           //units
+const countdown_size = 180;                       //units
+const healthbar_size = 40;                        //units
+const border_width = 12;                          //units
+const healthbar_offset = 25;                      //units
+const control_size = 160;                         //units
+const bush_size = 40;                             //units
+const wall_width = 35;                            //units
+const wall_height = wall_width * 3 / 5;           //units
+const wall_offset = 3;                            //units
+const tank_spawn_pos = { x: 300, y: 150 };        //x: units, y: units
+const tank_size = 40;                             //units
+const tank_speed = 1.5;                           //units/tick
+const tank_rotation_speed = 3 / 180 * Math.PI;    //radians/tick
+const tank_cooldown = 30;                         //ticks
+const bullet_speed = 5;                           //units/tick
+const bullet_size = 10;                           //units
+const bg_color = '#D5C69C';                     //color
 
-const unit_width = 1000;                    //units
-const unit_height = unit_width * 9 / 16;    //units
+const unit_width = 1000;                          //units
+const unit_height = unit_width * 9 / 16;          //units
 
 const colors = ['yellow', 'blue', 'red', 'green'];
 const color_codes = ['#eedb2f', '#4a91e2', '#d0021a', '#72cf0f'];
@@ -148,6 +150,7 @@ class tank {
     y = 0;
     orientation = 0;
     rot_multiplier = 1;
+    shield_time = -1;
     game = null;
 
     constructor(id, game) {
@@ -155,6 +158,16 @@ class tank {
         this.game = game;
         this.x = this.id % 2 ? unit_width - tank_spawn_pos.x : tank_spawn_pos.x;
         this.y = this.id >= 2 ? unit_height - tank_spawn_pos.y : tank_spawn_pos.y;
+    }
+    bullet_hit() {
+        if (this.health && this.shield_time == -1) {
+            this.health -= 1;
+            if (this.health == 0)
+                this.game.tanks_destroyed++;
+            else
+                this.shield_time = 0;
+        }
+
     }
     update() {
         //if tank active (not destroyed)
@@ -164,7 +177,7 @@ class tank {
                 //if it's the first frame where the control is down
                 if (!this.last_control_state) {
                     this.rot_multiplier *= -1;
-                    if (this.cooldown == 0) {
+                    if (this.cooldown == 0 && this.shield_time == -1) {
                         this.cooldown = tank_cooldown;
                         //shoot (instance a bullet)
                         this.game.bullets.push(new bullet(this.id, this.x + tank_size / 2 * Math.sin(this.orientation), this.y - tank_size / 2 * Math.cos(this.orientation), this.orientation, this.game));
@@ -204,9 +217,23 @@ class tank {
         }
         this.x = clamp(this.x, tank_size / 2 + border_width, (unit_width - border_width - tank_size / 2));
         this.y = clamp(this.y, tank_size / 2 + border_width, (unit_height - border_width - tank_size / 2));
+
+        if (this.shield_time != -1) {
+            this.shield_time++;
+            if (this.shield_time > shield_duration)
+                this.shield_time = -1;
+        }
     }
     render() {
         this.game.renderer.draw_rotated_image(this.health ? this.game.tank_images[this.id] : this.game.tank_image_destroyed, this.x, this.y, tank_size, -1, this.orientation);
+
+        if (this.shield_time != -1) {
+            const percentage = this.shield_time / shield_duration;
+            this.game.renderer.context.globalAlpha = 1 - Math.pow(percentage, 5);
+            this.game.renderer.draw_image_centered(this.game.shield_image, this.x, this.y, shield_size + percentage * 30, -1);
+            this.game.renderer.context.globalAlpha = 1;
+        }
+
         this.game.renderer.draw_image_centered(this.game.healthbar_images[this.health], this.x, this.y - healthbar_offset, healthbar_size, -1);
         if (debug)
             this.game.renderer.draw_ellipse(this.x, this.y, tank_size / 2, tank_size / 2, 0, color_codes[this.id], 3);
@@ -247,11 +274,7 @@ class bullet {
                 const radians = this.orientation;
                 if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size / 2)) {
                     this.delete();
-                    if (tank.health) {
-                        tank.health -= 1;
-                        if (tank.health == 0)
-                            this.game.tanks_destroyed++;
-                    }
+                    tank.bullet_hit();
                 }
             }
         }
@@ -406,6 +429,7 @@ class game {
     tank_image_destroyed = new Image();
     bullet_images = new Array(colors.length);
     bush_image = new Image();
+    shield_image = new Image();
     wall_image = new Image();
     control_images = new Array(colors.length);
     control_images_down = new Array(colors.length);
@@ -457,6 +481,7 @@ class game {
             this.healthbar_images[i].src = `assets/game/healthbars/health.${[i]}.svg`;
         }
         this.tank_image_destroyed.src = `assets/game/tanks/tank.destroyed.svg`;
+        this.shield_image.src = `assets/game/shields/shield.svg`;
         this.bush_image.src = `assets/game/bushes/bush.svg`
         this.wall_image.src = `assets/game/walls/wall.svg`
     }
