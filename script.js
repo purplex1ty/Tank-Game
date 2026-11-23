@@ -202,7 +202,7 @@ class tank {
             this.last_control_state = this.game.controls[this.id].down;
         }
         //check for collision
-        for (let i = 0; i < colors.length; i++) {
+        for (let i = 0; i < this.game.players; i++) {
             const tank = this.game.tanks[i];
             if (tank != this)
                 while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2))
@@ -268,7 +268,7 @@ class bullet {
             this.delete();
 
         //check if hitting any tank
-        for (let i = 0; i < colors.length; i++) {
+        for (let i = 0; i < this.game.players; i++) {
             const tank = this.game.tanks[i];
             if (tank.id != this.id) {
                 const radians = this.orientation;
@@ -331,7 +331,7 @@ class wall {
         }
     }
     update() {
-        for (let i = 0; i < colors.length; i++) {
+        for (let i = 0; i < this.game.players; i++) {
             const tank = this.game.tanks[i];
             while (this.game.rotated_rect_circle_collision(tank.x, tank.y, tank_size / 2, this.x, this.y, wall_width, wall_height, this.orientation))
                 this.game.resolve_collision(this, tank);
@@ -409,6 +409,7 @@ class game {
     tutorial = null;
     win = null;
     countdown_end = -1;
+    players = 4;
     //game timing
     ticks_per_second = 60;
     ms_per_tick = 1000 / this.ticks_per_second;
@@ -442,9 +443,9 @@ class game {
     tanks_destroyed = 0;
 
     constructor() {
+        this.setup_event_listeners();
         this.setup_game_images();
         this.setup_game_objects();
-        this.setup_event_listeners();
         if (debug && alternative_start_state) {
             this.state = alternative_start_state;
             this.state_changed = true;
@@ -462,7 +463,7 @@ class game {
         requestAnimationFrame(this.tick.bind(this));
     }
     setup_game_images() {
-        for (let i = 0; i < colors.length; i++) {
+        for (let i = 0; i < this.players; i++) {
             this.tank_images[i] = new Image;
             this.tank_images[i].src = `assets/game/tanks/tank.${colors[i]}.svg`;
             this.bullet_images[i] = new Image;
@@ -488,7 +489,7 @@ class game {
     setup_game_objects() {
         this.bushes.length = 4;
         this.bullets.length = 0;
-        for (let i = 0; i < colors.length; i++) {
+        for (let i = 0; i < this.players; i++) {
             this.controls[i] = new control(i, this);
             this.tanks[i] = new tank(i, this);
         }
@@ -505,6 +506,17 @@ class game {
         document.getElementById("play").addEventListener("click", e => {
             this.state = game_state.Tutorial;
             this.state_changed = true;
+        });
+        let player_button = document.getElementById("players");
+        this.players = new URLSearchParams(window.location.search).get("players");
+        player_button.textContent += this.players;
+
+        document.addEventListener("click", e => {
+            const selector = document.getElementById("player-selector");
+            if (e.target == player_button)
+                selector.classList.remove("hidden");
+            else
+                selector.classList.add("hidden");
         });
         document.getElementById("start").addEventListener("click", e => {
             this.state = game_state.Playing;
@@ -661,7 +673,7 @@ class game {
                 this.win.classList.add("hidden");
                 this.countdown_end = this.time + 4;
             }
-            for (let i = 0; i < colors.length; i++) {
+            for (let i = 0; i < this.players; i++) {
                 this.controls[i].update();
                 if (this.countdown_end == -1)
                     this.tanks[i].update();
@@ -672,7 +684,7 @@ class game {
             for (let i = 0; i < this.walls.length; i++) {
                 this.walls[i].update();
             }
-            if (this.tanks_destroyed >= colors.length - 1) {
+            if (this.tanks_destroyed >= this.players - 1) {
                 this.state = game_state.Win;
                 this.state_changed = true;
             }
@@ -747,10 +759,8 @@ class game {
         for (let i = 0; i < this.bullets.length; i++) {
             this.bullets[i].render();
         }
-        for (let i = 0; i < colors.length; i++) {
+        for (let i = 0; i < this.players; i++) {
             this.tanks[i].render();
-        }
-        for (let i = 0; i < colors.length; i++) {
             this.controls[i].render();
         }
         for (let [id, p] of this.pointers) {
