@@ -518,6 +518,8 @@ class game {
         });
         let player_button = document.getElementById("players");
         this.players = new URLSearchParams(window.location.search).get("players");
+        if (!this.players)
+            this.players = 4;
         player_button.textContent += this.players;
 
         document.addEventListener("click", e => {
