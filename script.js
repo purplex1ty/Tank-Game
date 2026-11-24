@@ -27,6 +27,12 @@ const unit_height = unit_width * 9 / 16;          //units
 const colors = ['yellow', 'blue', 'red', 'green'];
 const color_codes = ['#eedb2f', '#4a91e2', '#d0021a', '#72cf0f'];
 
+const player_count_configuration = {
+    2: [0, 3],
+    3: [0, 1, 3],
+    4: [0, 1, 2, 3]
+}
+
 const game_state = Object.freeze({
     Menu: 0,
     Tutorial: 1,
@@ -203,7 +209,7 @@ class tank {
         }
         //check for collision
         for (let i = 0; i < this.game.players; i++) {
-            const tank = this.game.tanks[i];
+            const tank = this.game.tanks[player_count_configuration[this.game.players][i]];
             if (tank != this)
                 while (this.game.circle_collision(this.x, this.y, tank_size / 2, tank.x, tank.y, tank_size / 2))
                     this.game.resolve_collision(this, tank);
@@ -269,7 +275,7 @@ class bullet {
 
         //check if hitting any tank
         for (let i = 0; i < this.game.players; i++) {
-            const tank = this.game.tanks[i];
+            const tank = this.game.tanks[player_count_configuration[this.game.players][i]];
             if (tank.id != this.id) {
                 const radians = this.orientation;
                 if (this.game.circle_collision(this.x + bullet_size * Math.sin(radians), this.y - bullet_size * Math.cos(radians), bullet_size / 2, tank.x, tank.y, tank_size / 2)) {
@@ -332,7 +338,7 @@ class wall {
     }
     update() {
         for (let i = 0; i < this.game.players; i++) {
-            const tank = this.game.tanks[i];
+            const tank = this.game.tanks[player_count_configuration[this.game.players][i]];
             while (this.game.rotated_rect_circle_collision(tank.x, tank.y, tank_size / 2, this.x, this.y, wall_width, wall_height, this.orientation))
                 this.game.resolve_collision(this, tank);
 
@@ -403,13 +409,11 @@ class bush {
 
 class game {
     renderer;
-    state = game_state.Menu;
-    state_changed = true;
     menu = null;
     tutorial = null;
     win = null;
-    countdown_end = -1;
-    players = 4;
+    wiggle_letters = new Array();
+
     //game timing
     ticks_per_second = 60;
     ms_per_tick = 1000 / this.ticks_per_second;
@@ -441,11 +445,16 @@ class game {
 
     //game variables
     tanks_destroyed = 0;
+    countdown_end = -1;
+    players = 4;
+    state = game_state.Menu;
+    state_changed = true;
 
     constructor() {
         this.setup_event_listeners();
         this.setup_game_images();
         this.setup_game_objects();
+        this.setup_wiggle_effects();
         if (debug && alternative_start_state) {
             this.state = alternative_start_state;
             this.state_changed = true;
@@ -463,7 +472,7 @@ class game {
         requestAnimationFrame(this.tick.bind(this));
     }
     setup_game_images() {
-        for (let i = 0; i < this.players; i++) {
+        for (let i = 0; i < colors.length; i++) {
             this.tank_images[i] = new Image;
             this.tank_images[i].src = `assets/game/tanks/tank.${colors[i]}.svg`;
             this.bullet_images[i] = new Image;
@@ -489,10 +498,10 @@ class game {
     setup_game_objects() {
         this.bushes.length = 4;
         this.bullets.length = 0;
-        for (let i = 0; i < this.players; i++) {
-            this.controls[i] = new control(i, this);
+        for (let i = 0; i < this.tanks.length; i++)
             this.tanks[i] = new tank(i, this);
-        }
+        for (let i = 0; i < this.controls.length; i++)
+            this.controls[i] = new control(i, this);
         for (let i = 0; i < this.walls.length; i++)
             this.walls[i] = new wall(i, this);
         for (let i = 0; i < this.bushes.length; i++)
@@ -562,6 +571,16 @@ class game {
                 x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, type: e.pointerType // "mouse", "touch", "pen"
             };
         };
+    }
+    setup_wiggle_effects() {
+        this.wiggle_letters = document.querySelectorAll("h1 span[data-i]");
+        for (const l of this.wiggle_letters) {
+            l.style.color = color_codes[l.dataset.i];
+        }
+    }
+    update_wiggle_effects() {
+        for (const l of this.wiggle_letters)
+            l.style.translate = `0 ${Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5)}vw`;
     }
     mouse_down_box(x, y, w, h) {
         for (const [id, p] of this.pointers) {
@@ -673,17 +692,15 @@ class game {
                 this.win.classList.add("hidden");
                 this.countdown_end = this.time + 4;
             }
-            for (let i = 0; i < this.players; i++) {
-                this.controls[i].update();
+            for (const c of this.controls)
+                c.update();
+            for (let i = 0; i < this.players; i++)
                 if (this.countdown_end == -1)
-                    this.tanks[i].update();
-            }
-            for (let i = this.bullets.length - 1; i >= 0; i--) {
-                this.bullets[i].update();
-            }
-            for (let i = 0; i < this.walls.length; i++) {
-                this.walls[i].update();
-            }
+                    this.tanks[player_count_configuration[this.players][i]].update();
+            for (const b of this.bullets)
+                b.update();
+            for (const w of this.walls)
+                w.update();
             if (this.tanks_destroyed >= this.players - 1) {
                 this.state = game_state.Win;
                 this.state_changed = true;
@@ -702,14 +719,7 @@ class game {
                 this.menu.classList.remove("hidden");
                 this.win.classList.add("hidden");
                 this.state_changed = false;
-                let letters = document.querySelectorAll("#menu h1 span[data-i]");
-                for (const l of letters) {
-                    l.style.color = color_codes[l.dataset.i];
-                }
             }
-            let letters = document.querySelectorAll("#menu h1 span[data-i]");
-            for (const l of letters)
-                l.style.transform = `translateY(${Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5)}vh)`;
         }
         else if (this.state == game_state.Win) {
             if (this.state_changed == true) {
@@ -721,17 +731,11 @@ class game {
                 let color = document.querySelector("#win h1#color span");
                 color.textContent = colors[win_color];
                 color.style.color = color_codes[win_color];
-                let letters = document.querySelectorAll("#win h1 span[data-i]");
-                for (const l of letters) {
-                    l.style.color = color_codes[l.dataset.i];
-                }
                 this.tanks_destroyed = 0;
                 this.setup_game_objects();
             }
-            let letters = document.querySelectorAll("#win h1 span[data-i]");
-            for (const l of letters)
-                l.style.translate = `translateY(${Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5)}vh)`;
         }
+        this.update_wiggle_effects();
     }
     render() {
         this.renderer.update();
@@ -748,21 +752,19 @@ class game {
             this.renderer.fill_ellipse(0, unit_height, control_size - i, control_size - i, 0, '#25003d');
             this.renderer.fill_ellipse(unit_width, unit_height, control_size - i, control_size - i, 0, '#25003d');
         }
-
         this.renderer.context.globalAlpha = 1;
-        for (let i = 0; i < this.bushes.length; i++) {
-            this.bushes[i].render();
-        }
-        for (let i = 0; i < this.walls.length; i++) {
-            this.walls[i].render();
-        }
-        for (let i = 0; i < this.bullets.length; i++) {
-            this.bullets[i].render();
-        }
-        for (let i = 0; i < this.players; i++) {
-            this.tanks[i].render();
-            this.controls[i].render();
-        }
+
+        for (const b of this.bushes)
+            b.render();
+        for (const w of this.walls)
+            w.render();
+        for (const b of this.bullets)
+            b.render();
+        for (let i = 0; i < this.players; i++)
+            this.tanks[player_count_configuration[this.players][i]].render();
+        for (const c of this.controls)
+            c.render()
+
         for (let [id, p] of this.pointers) {
             this.renderer.fill_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 15, 15, 0, '#ffffff69');
             this.renderer.draw_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 18, 18, 0, '#79797994', 6);
