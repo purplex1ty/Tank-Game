@@ -729,7 +729,7 @@ class game {
                 this.tutorial.classList.add("hidden");
                 this.menu.classList.add("hidden");
                 this.win.classList.remove("hidden");
-                let win_color = this.tanks.find(t => t.health > 0).id;
+                const win_color = player_count_configuration[this.players].find(id => this.tanks[id].health > 0);
                 let color = document.querySelector("#win h1#color span");
                 color.textContent = colors[win_color];
                 color.style.color = color_codes[win_color];
