@@ -37,19 +37,19 @@
 
 button {
     font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
-    font-size: 3vw;
-    width: 25vw;
-    padding-block: 1.5vw 1vw;
-    border: .5vw solid #3c004b;
-    border-radius: 1.5vw;
+    font-size: max(3vw, 2.5vh);
+    width: max(25vw, 20vh);
+    padding-block: max(1.5vw, 1.2vh) max(1vw, .8vh);
+    border: max(.3vw, .3vh) solid #3c004b;
+    border-radius: max(1.5vw, 1.3vh);
     background-color: #5b007763;
-    box-shadow: #5b0077d3 0px 0px 20px;
+    box-shadow: #5b0077d3 0px 0px max(1vw, 1vh);
     transition: ease-in-out .2s;
-    margin-bottom: 1.5vw;
+    margin-bottom: max(1.5vw, 1.3vh);
 }
 
 button:hover {
-    box-shadow: #5b0077 0px 0px 40px;
+    box-shadow: #5b0077 0px 0px max(2vw, 2vh);
     background-color: #5b007763;
 }
 
@@ -78,8 +78,8 @@ button.wiggle:hover {
 }
 
 h1.wiggle {
-    font-size: 8vw;
-    letter-spacing: -1vw;
+    font-size: max(8vw, 7.5vh);
+    letter-spacing: max(-1vw, -1vh);
 
     span {
         font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -88,7 +88,7 @@ h1.wiggle {
         padding: 0;
         transition: transform .1s ease-out;
         text-shadow: .2vw .1vw .5vw, -.2vw -.1vw .5vw #4b0043a8;
-        transition: text-shadow .2s ease-in-out;
+        transition: text-shadow .2s linear;
     }
 
     span:hover {
@@ -116,8 +116,8 @@ h1.wiggle {
 
     p {
         color: white;
-        text-shadow: white 0px 0px 20px;
-        font-size: 1.2vw;
+        text-shadow: white 0px 0px max(1.5vw, 1.5vh);
+        font-size: max(1.5vw, 2vh);
         position: absolute;
         bottom: 10px;
         right: 20px;
@@ -131,14 +131,14 @@ h1.wiggle {
 
     #player-selector {
         font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
-        font-size: 2vw;
+        font-size: max(2vw, 2vh);
         padding: 1.2vw 5vw .6vw;
         border-radius: 1.5vw;
         transition: opacity .3s ease-in-out;
 
         a {
             display: inline-block;
-            font-size: 3vw;
+            font-size: max(3vw, 2.5vh);
             font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
             font-weight: bolder;
             text-decoration: none;
@@ -153,7 +153,7 @@ h1.wiggle {
 
 #tutorial {
     .box {
-        box-shadow: #efe3ff 0px 0px 30px;
+        box-shadow: #efe3ff 0px 0px max(4vw, 4vh);
         max-width: 50vw;
         border-radius: 20px;
         background-color: #efe3ff;
@@ -199,4 +199,19 @@ body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+}
+
+#rotate-message {
+    color: white;
+    text-shadow: white 0px 0px 20px;
+    font-size: 2vh;
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    transition: opacity .6s;
+    opacity: 0;
+
+    @media (orientation:portrait) {
+        opacity: 1;
+    }
 }

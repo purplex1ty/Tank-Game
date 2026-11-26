@@ -581,8 +581,10 @@ class game {
         }
     }
     update_wiggle_effects() {
-        for (const l of this.wiggle_letters)
-            l.style.translate = `0 ${Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5)}vw`;
+        for (const l of this.wiggle_letters) {
+            const anim = Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5);
+            l.style.translate = `0 max(${anim}vw, ${anim}vh)`;
+        }
     }
     mouse_down_box(x, y, w, h) {
         for (const [id, p] of this.pointers) {
