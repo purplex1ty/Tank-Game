@@ -44,7 +44,7 @@ button {
     border-radius: max(1.5vw, 1.3vh);
     background-color: #5b007763;
     box-shadow: #5b0077d3 0px 0px max(1vw, 1vh);
-    transition: ease-in-out .2s;
+    transition: box-shadow ease-in-out .2s;
     margin-bottom: max(1.5vw, 1.3vh);
 }
 
@@ -78,7 +78,7 @@ button.wiggle:hover {
 }
 
 h1.wiggle {
-    font-size: max(8vw, 7.5vh);
+    font-size: min(13vw, max(8vw, 7vh));
     letter-spacing: max(-1vw, -1vh);
 
     span {
