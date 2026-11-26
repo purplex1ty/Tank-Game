@@ -78,7 +78,7 @@ button.wiggle:hover {
 }
 
 h1.wiggle {
-    font-size: min(13vw, max(8vw, 7vh));
+    font-size: min(11vw, max(8vw, 7vh));
     letter-spacing: max(-1vw, -1vh);
 
     span {
