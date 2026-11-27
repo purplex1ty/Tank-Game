@@ -1,7 +1,7 @@
 //------- CONSTANTS -------
 // 1 unit = 1/1000 of the canvas width
 // 1 tick = 1/60 of a second
-const shield_duration = 180                       //ticks
+const shield_duration = 100                       //ticks
 const shield_size = 55;                           //units
 const countdown_size = 180;                       //units
 const healthbar_size = 40;                        //units
@@ -583,7 +583,7 @@ class game {
     update_wiggle_effects() {
         for (const l of this.wiggle_letters) {
             const anim = Math.sin(this.time * 10 + l.dataset.i * Math.PI * 0.5);
-            l.style.translate = `0 max(${anim}vw, ${anim}vh)`;
+            l.style.translate = `0 ${anim}vw`;
         }
     }
     mouse_down_box(x, y, w, h) {

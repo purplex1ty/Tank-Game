@@ -6,7 +6,7 @@
 * {
     margin: 0;
     padding: 0;
-    font-family: Roboto, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
     color: #3c004b;
 }
 
@@ -37,15 +37,15 @@
 
 button {
     font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
-    font-size: max(3vw, 2.5vh);
-    width: max(25vw, 20vh);
+    font-size: min(4vw, max(3vw, 2.5vh));
+    width: min(35vw, max(25vw, 20vh));
     padding-block: max(1.5vw, 1.2vh) max(1vw, .8vh);
     border: max(.3vw, .3vh) solid #3c004b;
     border-radius: max(1.5vw, 1.3vh);
     background-color: #5b007763;
     box-shadow: #5b0077d3 0px 0px max(1vw, 1vh);
     transition: box-shadow ease-in-out .2s;
-    margin-bottom: max(1.5vw, 1.3vh);
+    margin-bottom: 1.5vw;
 }
 
 button:hover {
@@ -78,7 +78,7 @@ button.wiggle:hover {
 }
 
 h1.wiggle {
-    font-size: min(11vw, max(8vw, 7vh));
+    font-size: min(11vw, max(9.5vw, 7vh));
     letter-spacing: max(-1vw, -1vh);
 
     span {
@@ -114,15 +114,16 @@ h1.wiggle {
     display: flex;
     align-items: center;
 
-    p {
+    >p {
         color: white;
         text-shadow: white 0px 0px max(1.5vw, 1.5vh);
         font-size: max(1.5vw, 2vh);
         position: absolute;
-        bottom: 10px;
+        bottom: 15px;
         right: 20px;
 
         span {
+            font-family: Roboto, 'Open Sans', 'Helvetica Neue', sans-serif;
             color: white;
             font-weight: bolder;
             font-style: italic;
@@ -130,21 +131,29 @@ h1.wiggle {
     }
 
     #player-selector {
-        font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
-        font-size: max(2vw, 2vh);
-        padding: 1.2vw 5vw .6vw;
-        border-radius: 1.5vw;
-        transition: opacity .3s ease-in-out;
+        width: max(25vw, 20vh);
+        height: max(4vw, 3vh);
+        text-align: center;
+        transition: opacity .2s ease-in-out;
 
-        a {
-            display: inline-block;
-            font-size: max(3vw, 2.5vh);
-            font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
-            font-weight: bolder;
-            text-decoration: none;
+        p {
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: min(3vw, max(2vw, 2vh));
+
+            a {
+                display: inline-block;
+                font-weight: bolder;
+                font-size: min(4vw, max(3vw, 2.5vh));
+                text-decoration: none;
+                transition: font-size .2s ease-in-out;
+            }
         }
 
+
         a:hover {
+            font-size: max(3.5vw, 3vh);
             animation: rotate .7s ease-in-out;
         }
     }
@@ -155,27 +164,27 @@ h1.wiggle {
     .box {
         box-shadow: #efe3ff 0px 0px max(4vw, 4vh);
         max-width: 50vw;
-        border-radius: 20px;
+        border-radius: 2vw;
         background-color: #efe3ff;
         padding: 3vw 6vw;
     }
 
     h1 {
-        font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
         font-size: 4vw;
         text-align: center;
         margin-bottom: 1vw;
     }
 
     h2 {
-        font-family: 'my_font', 'Open Sans', 'Helvetica Neue', sans-serif;
         font-size: 2.5vw;
     }
 
     p {
-        font-size: 1.2vw;
-        margin-block: 1vw;
-        line-height: 150%;
+        font-family: Roboto, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-weight: 600;
+        font-size: 1.7vw;
+        margin: .1vw 0 1vw 2vw;
+        line-height: 130%;
     }
 
     button {
@@ -184,14 +193,6 @@ h1.wiggle {
         margin-inline: auto;
     }
 
-}
-
-#win {
-    p {
-        font-size: 1.2vw;
-        margin-block: 1vw;
-        line-height: 150%;
-    }
 }
 
 body {
@@ -206,7 +207,7 @@ body {
     text-shadow: white 0px 0px 20px;
     font-size: 2vh;
     position: absolute;
-    top: 10px;
+    top: 15px;
     left: 20px;
     transition: opacity .6s;
     opacity: 0;
