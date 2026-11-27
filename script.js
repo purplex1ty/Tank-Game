@@ -3,6 +3,7 @@
 // 1 tick = 1/60 of a second
 const shield_duration = 100                       //ticks
 const shield_size = 55;                           //units
+const particle_size = 2;                          //units
 const countdown_size = 180;                       //units
 const healthbar_size = 40;                        //units
 const border_width = 12;                          //units
@@ -20,6 +21,7 @@ const tank_cooldown = 30;                         //ticks
 const bullet_speed = 5;                           //units/tick
 const bullet_size = 10;                           //units
 const bg_color = '#D5C69C';                     //color
+const destroyed_tank_color = '#4d2727';         //color
 
 const unit_width = 1000;                          //units
 const unit_height = unit_width * 9 / 16;          //units
@@ -41,7 +43,8 @@ const game_state = Object.freeze({
 });
 
 //-------- DEBUG --------
-const debug = false;
+const debug_hitboxes = false;
+const skip_countdown = true;
 const alternative_start_state = game_state.Playing;
 
 //------- RENDERING -------
@@ -143,7 +146,7 @@ class control {
     }
     render() {
         this.game.renderer.draw_image(this.down ? this.game.control_images_down[this.id] : this.game.control_images[this.id], this.x, this.y, control_size, control_size);
-        if (debug)
+        if (debug_hitboxes)
             this.game.renderer.draw_rect(this.x, this.y, control_size, control_size, color_codes[this.id], 0, 3);
     }
 }
@@ -192,6 +195,16 @@ class tank {
                 //move it
                 this.x += tank_speed * Math.sin(this.orientation);
                 this.y -= tank_speed * Math.cos(this.orientation);
+
+                //spawn move particles
+                for (let i = 0; i < 10; i++) {
+                    const offset = tank_size / 3 + (Math.random() - .5) * 4;
+                    this.game.particles.push(new particle(this.x + offset * Math.sin(this.orientation + Math.PI / 2), this.y - offset * Math.cos(this.orientation + Math.PI / 2), '#000000', 30, 0, this.game));
+                }
+                for (let i = 0; i < 10; i++) {
+                    const offset = -tank_size / 3 - (Math.random() - .5) * 4;
+                    this.game.particles.push(new particle(this.x + offset * Math.sin(this.orientation + Math.PI / 2), this.y - offset * Math.cos(this.orientation + Math.PI / 2), '#000000', 30, 0, this.game));
+                }
             }
             //control not down, rotate it
             else {
@@ -206,6 +219,13 @@ class tank {
                 this.cooldown = 0;
             }
             this.last_control_state = this.game.controls[this.id].down;
+        }
+        else {
+            //spawn death particle
+            for (let i = 0; i < 20; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                this.game.particles.push(new particle(this.x + tank_size / 3 * Math.sin(angle), this.y - tank_size / 3 * Math.cos(angle), destroyed_tank_color, 50, .02, this.game));
+            }
         }
         //check for collision
         for (let i = 0; i < this.game.players; i++) {
@@ -241,7 +261,7 @@ class tank {
         }
 
         this.game.renderer.draw_image_centered(this.game.healthbar_images[this.health], this.x, this.y - healthbar_offset, healthbar_size, -1);
-        if (debug)
+        if (debug_hitboxes)
             this.game.renderer.draw_ellipse(this.x, this.y, tank_size / 2, tank_size / 2, 0, color_codes[this.id], 3);
     }
 }
@@ -268,6 +288,12 @@ class bullet {
         //move it
         this.x += bullet_speed * Math.sin(this.orientation);
         this.y -= bullet_speed * Math.cos(this.orientation);
+
+        //spawn particle
+        for (let i = 0; i < 10; i++) {
+            const offset = (Math.random() - .5) * bullet_size;
+            this.game.particles.push(new particle(this.x + offset * Math.sin(this.orientation + Math.PI / 2), this.y - offset * Math.cos(this.orientation + Math.PI / 2), color_codes[this.id], 8, .2, this.game));
+        }
 
         //check if outside border
         if (this.x > unit_width + 200 || this.y > unit_height + 200 || this.x < -200 || this.y < -200)
@@ -303,7 +329,7 @@ class bullet {
     }
     render() {
         this.game.renderer.draw_rotated_image(this.game.bullet_images[this.id], this.x, this.y, bullet_size, -1, this.orientation);
-        if (debug) {
+        if (debug_hitboxes) {
             this.game.renderer.draw_ellipse(this.x, this.y, bullet_size / 2, bullet_size / 2, 0, color_codes[this.id], 3);
         }
     }
@@ -361,7 +387,7 @@ class wall {
     }
     render() {
         this.game.renderer.draw_rotated_image(this.game.wall_image, this.x, this.y, wall_width, -1, this.orientation);
-        if (debug)
+        if (debug_hitboxes)
             this.game.renderer.draw_rect(this.x - wall_width / 2, this.y - wall_width / 10 * 3, wall_width, wall_height, '#b45100', this.orientation, 3);
     }
 }
@@ -402,8 +428,48 @@ class bush {
     }
     render() {
         this.game.renderer.draw_rotated_image(this.game.bush_image, this.x, this.y, bush_size, bush_size, this.orientation);
-        if (debug)
+        if (debug_hitboxes)
             this.game.renderer.draw_ellipse(this.x, this.y, bush_size / 2, bush_size / 2, 0, color_codes[3], 3);
+    }
+}
+class particle {
+    color = null;
+    x = 0;
+    y = 0;
+    vx = 0;
+    vy = 0;
+    acceleration = 0;
+    orientation = 0
+    tick = 0;
+    lifetime = 0;
+    game = null;
+
+    constructor(x, y, color, lifetime, acceleration, game) {
+        this.x = x;
+        this.y = y;
+        this.lifetime = lifetime;
+        this.orientation = Math.random() * Math.PI * 2;
+        this.acceleration = acceleration;
+        this.color = color;
+        this.game = game;
+    }
+    delete() {
+        const index = this.game.particles.indexOf(this);
+        if (index !== -1) this.game.particles.splice(index, 1);
+    }
+    update() {
+        this.tick++;
+        if (this.tick > this.lifetime)
+            this.delete();
+        this.vx += this.acceleration * Math.sin(this.orientation);
+        this.vy += this.acceleration * Math.cos(this.orientation);
+        this.x += this.vx;
+        this.y += this.vy;
+    }
+    render() {
+        this.game.renderer.context.globalAlpha = 1 - Math.pow(this.tick / this.lifetime, 1);
+        this.game.renderer.fill_ellipse(this.x, this.y, particle_size / 2, particle_size / 2, 0, this.color);
+        this.game.renderer.context.globalAlpha = 1;
     }
 }
 
@@ -427,6 +493,7 @@ class game {
     walls = new Array(colors.length * 16);
     bushes = new Array(4);
     bullets = new Array();
+    particles = new Array();
 
     //game images
     tank_images = new Array(colors.length);
@@ -455,7 +522,7 @@ class game {
         this.setup_game_images();
         this.setup_game_objects();
         this.setup_wiggle_effects();
-        if (debug && alternative_start_state) {
+        if (alternative_start_state) {
             this.state = alternative_start_state;
             this.state_changed = true;
         }
@@ -550,7 +617,7 @@ class game {
 
         document.addEventListener("keydown", e => {
             if (e.key === "d") {
-                this.debug = !this.debug;
+                this.debug_hitboxes = !this.debug_hitboxes;
             }
         });
         window.addEventListener("pointerdown", e => {
@@ -694,7 +761,8 @@ class game {
                 this.tutorial.classList.add("hidden");
                 this.menu.classList.add("hidden");
                 this.win.classList.add("hidden");
-                this.countdown_end = this.time + 4;
+                if (!skip_countdown)
+                    this.countdown_end = this.time + 4;
             }
             for (const c of this.controls)
                 c.update();
@@ -705,6 +773,8 @@ class game {
                 b.update();
             for (const w of this.walls)
                 w.update();
+            for (const p of this.particles)
+                p.update();
             if (this.tanks_destroyed >= this.players - 1) {
                 this.state = game_state.Win;
                 this.state_changed = true;
@@ -758,6 +828,8 @@ class game {
         }
         this.renderer.context.globalAlpha = 1;
 
+        for (const p of this.particles)
+            p.render()
         for (const b of this.bushes)
             b.render();
         for (const w of this.walls)
