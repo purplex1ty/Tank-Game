@@ -53,8 +53,6 @@ class renderer {
     context;
     html;
     scale;
-    canvas_width;
-    canvas_height;
 
     constructor(canvas) {
         this.canvas = canvas;
@@ -63,11 +61,24 @@ class renderer {
     }
 
     update() {
-        this.canvas_width = Math.min(this.html.clientWidth, this.html.clientHeight * 16 / 9);
-        this.canvas_height = Math.min(this.html.clientHeight, this.html.clientWidth * 9 / 16);
-        this.scale = this.canvas_width / unit_width;
-        this.canvas.width = this.canvas_width;
-        this.canvas.height = this.canvas_height;
+        const pinch = window.visualViewport.scale;
+
+        // never below 2x, never above 3x
+        const dpr = (window.devicePixelRatio || 1) * pinch;
+
+        // fit 16:9 inside the window
+        const canvas_width = Math.min(window.innerWidth, window.innerHeight * 16 / 9);
+        const canvas_height = canvas_width * 9 / 16;
+
+        this.scale = canvas_width * dpr / unit_width;
+
+        // CSS (display) size
+        this.canvas.style.width = canvas_width + 'px';
+        this.canvas.style.height = canvas_height + 'px';
+
+        // internal resolution
+        this.canvas.width = canvas_width * dpr;
+        this.canvas.height = canvas_height * dpr;
     }
 
     draw_image(image, x, y, width, height) {
