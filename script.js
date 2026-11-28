@@ -44,8 +44,8 @@ const game_state = Object.freeze({
 
 //-------- DEBUG --------
 const debug_hitboxes = false;
-const skip_countdown = true;
-const alternative_start_state = game_state.Playing;
+const skip_countdown = false;
+const alternative_start_state = null;
 
 //------- RENDERING -------
 class renderer {
@@ -61,10 +61,7 @@ class renderer {
     }
 
     update() {
-        const pinch = window.visualViewport.scale;
-
-        // never below 2x, never above 3x
-        const dpr = (window.devicePixelRatio || 1) * pinch;
+        const dpr = window.devicePixelRatio;
 
         // fit 16:9 inside the window
         const canvas_width = Math.min(window.innerWidth, window.innerHeight * 16 / 9);
@@ -632,11 +629,11 @@ class game {
             }
         });
         window.addEventListener("pointerdown", e => {
-            this.pointers.set(e.pointerId, this.getPos(e));
+            this.pointers.set(e.pointerId, { x: this.getPos(e).x * window.devicePixelRatio, y: this.getPos(e).y * window.devicePixelRatio });
         });
         window.addEventListener("pointermove", e => {
             if (this.pointers.has(e.pointerId)) {
-                this.pointers.set(e.pointerId, this.getPos(e));
+                this.pointers.set(e.pointerId, { x: this.getPos(e).x * window.devicePixelRatio, y: this.getPos(e).y * window.devicePixelRatio });
             }
         });
         window.addEventListener("pointerup", e => {
@@ -852,9 +849,9 @@ class game {
         for (const c of this.controls)
             c.render()
 
-        for (let [id, p] of this.pointers) {
-            this.renderer.fill_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 15, 15, 0, '#ffffff69');
-            this.renderer.draw_ellipse(p.x / this.renderer.scale, p.y / this.renderer.scale, 18, 18, 0, '#79797994', 6);
+        for (const [id, pos] of this.pointers) {
+            this.renderer.fill_ellipse(pos.x / this.renderer.scale, pos.y / this.renderer.scale, 15, 15, 0, '#ffffff69');
+            this.renderer.draw_ellipse(pos.x / this.renderer.scale, pos.y / this.renderer.scale, 18, 18, 0, '#79797994', 6);
         }
         if (this.countdown_end != -1) {
             const countdown_time = this.countdown_end - this.time;
