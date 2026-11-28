@@ -44,8 +44,8 @@ const game_state = Object.freeze({
 
 //-------- DEBUG --------
 const debug_hitboxes = false;
-const skip_countdown = true;
-const alternative_start_state = game_state.Playing;
+const skip_countdown = false;
+const alternative_start_state = null;
 
 //------- RENDERING -------
 class renderer {
